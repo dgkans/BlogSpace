@@ -1,7 +1,30 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 function Home() {
+  const [blogs, setBlogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('http://localhost:5001/api/blogs/published');
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to load blogs');
+        }
+        setBlogs(data.blogs || []);
+      } catch (e) {
+        setBlogs([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
   return (
     <main className="page-content">
       <section className="hero">
@@ -42,7 +65,30 @@ function Home() {
       <section className="cta-section">
         <h2>Ready to Start Blogging?</h2>
         <p>Join thousands of writers sharing their stories on our platform.</p>
-        <Link to="#" className="cta-button primary large">Sign Up Now</Link>
+      </section>
+
+      <section className="blog-feed">
+        <h2>Published Posts</h2>
+        {loading ? (
+          <p className="muted">Loading posts...</p>
+        ) : blogs.length === 0 ? (
+          <p className="muted">No published posts yet.</p>
+        ) : (
+          <div className="blog-grid">
+            {blogs.map((b) => (
+              <div key={b.id} className="blog-card">
+                <h3 className="blog-card-title">{b.title}</h3>
+                <p className="blog-card-meta">
+                  {b.author?.full_name ? b.author.full_name : 'Unknown'} ·{' '}
+                  {new Date(b.created_at).toLocaleDateString()}
+                </p>
+                <p className="blog-card-content">
+                  {b.content.length > 240 ? `${b.content.slice(0, 240)}...` : b.content}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

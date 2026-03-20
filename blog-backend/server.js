@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import connectDB from './config/db.js';
 import User from './models/User.js';
+import Blog from './models/Blog.js';
 
 dotenv.config();
 
@@ -60,12 +61,17 @@ app.post('/api/auth/register', async (req, res) => {
     if (existingUser) {
       return res.status(409).json({ message: 'Email already registered' });
     }
+    const lastUserWithId = await User.findOne({ id: { $ne: null } })
+      .sort({ id: -1 })
+      .select('id');
+    const nextId = lastUserWithId?.id ? lastUserWithId.id + 1 : 1;
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user
     const user = new User({
+      id: nextId,
       full_name: fullName,
       email,
       username: email.split('@')[0],
@@ -242,6 +248,248 @@ app.delete('/api/users/:userId', verifyToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error deleting profile' });
+  }
+});
+
+app.post('/api/blogs', verifyToken, async (req, res) => {
+  const { title, content, status } = req.body;
+
+  if (!title || !content) {
+    return res.status(400).json({ message: 'Title and content are required' });
+  }
+
+  try {
+    const blog = await Blog.create({
+      author_id: req.user.userId,
+      title,
+      content,
+      status: status || 'draft',
+    });
+
+    res.status(201).json({
+      message: 'Blog created successfully',
+      blog: {
+        id: blog._id,
+        title: blog.title,
+        content: blog.content,
+        status: blog.status,
+        author_id: blog.author_id,
+        created_at: blog.created_at,
+        updated_at: blog.updated_at,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error creating blog' });
+  }
+});
+
+app.put('/api/blogs/:blogId/publish', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.blogId);
+    if (!blog) {
+      return res.status(404).json({ message: 'Blog not found' });
+    }
+
+    if (blog.author_id.toString() !== req.user.userId.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    blog.status = 'published';
+    await blog.save();
+
+    res.json({
+      message: 'Blog published',
+      blog: {
+        id: blog._id,
+        title: blog.title,
+        content: blog.content,
+        status: blog.status,
+        author_id: blog.author_id,
+        created_at: blog.created_at,
+        updated_at: blog.updated_at,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error publishing blog' });
+  }
+});
+
+app.get('/api/blogs/published', async (req, res) => {
+  try {
+    const blogs = await Blog.find({ status: 'published' })
+      .sort({ created_at: -1 })
+      .limit(20)
+      .populate('author_id', 'full_name username');
+
+    res.json({
+      blogs: blogs.map((b) => ({
+        id: b._id,
+        title: b.title,
+        content: b.content,
+        status: b.status,
+        author: b.author_id
+          ? { id: b.author_id._id, full_name: b.author_id.full_name, username: b.author_id.username }
+          : null,
+        created_at: b.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching published blogs' });
+  }
+});
+
+app.get('/api/blogs/public/:blogId', async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.blogId).populate('author_id', 'full_name username');
+    if (!blog || blog.status !== 'published') {
+      return res.status(404).json({ message: 'Blog not found' });
+    }
+
+    res.json({
+      blog: {
+        id: blog._id,
+        title: blog.title,
+        content: blog.content,
+        status: blog.status,
+        author: blog.author_id
+          ? { id: blog.author_id._id, full_name: blog.author_id.full_name, username: blog.author_id.username }
+          : null,
+        created_at: blog.created_at,
+        updated_at: blog.updated_at,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching blog' });
+  }
+});
+
+app.get('/api/blogs/mine', verifyToken, async (req, res) => {
+  try {
+    const blogs = await Blog.find({ author_id: req.user.userId })
+      .sort({ created_at: -1 })
+      .limit(50);
+
+    res.json({
+      blogs: blogs.map((b) => ({
+        id: b._id,
+        title: b.title,
+        content: b.content,
+        status: b.status,
+        created_at: b.created_at,
+        updated_at: b.updated_at,
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching your blogs' });
+  }
+});
+
+app.get('/api/blogs/:blogId', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.blogId);
+    if (!blog) {
+      return res.status(404).json({ message: 'Blog not found' });
+    }
+
+    if (blog.author_id.toString() !== req.user.userId.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    res.json({
+      blog: {
+        id: blog._id,
+        title: blog.title,
+        content: blog.content,
+        status: blog.status,
+        created_at: blog.created_at,
+        updated_at: blog.updated_at,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching blog' });
+  }
+});
+
+app.put('/api/blogs/:blogId', verifyToken, async (req, res) => {
+  const { title, content, status } = req.body;
+
+  try {
+    const blog = await Blog.findById(req.params.blogId);
+    if (!blog) {
+      return res.status(404).json({ message: 'Blog not found' });
+    }
+
+    if (blog.author_id.toString() !== req.user.userId.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const updates = {};
+
+    if (title !== undefined) {
+      if (!title.trim()) {
+        return res.status(400).json({ message: 'Title cannot be empty' });
+      }
+      updates.title = title.trim();
+    }
+
+    if (content !== undefined) {
+      if (!content.trim()) {
+        return res.status(400).json({ message: 'Content cannot be empty' });
+      }
+      updates.content = content;
+    }
+
+    if (status !== undefined) {
+      const allowed = ['draft', 'published', 'archived'];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({ message: 'Invalid status' });
+      }
+      updates.status = status;
+    }
+
+    await Blog.findByIdAndUpdate(req.params.blogId, { $set: updates }, { new: true });
+
+    const updated = await Blog.findById(req.params.blogId);
+    res.json({
+      message: 'Blog updated successfully',
+      blog: {
+        id: updated._id,
+        title: updated.title,
+        content: updated.content,
+        status: updated.status,
+        created_at: updated.created_at,
+        updated_at: updated.updated_at,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error updating blog' });
+  }
+});
+
+app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.blogId);
+    if (!blog) {
+      return res.status(404).json({ message: 'Blog not found' });
+    }
+
+    if (blog.author_id.toString() !== req.user.userId.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    await Blog.findByIdAndDelete(req.params.blogId);
+
+    res.json({ message: 'Blog deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error deleting blog' });
   }
 });
 

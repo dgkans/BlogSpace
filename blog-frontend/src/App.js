@@ -8,7 +8,11 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
+import CreatePost from './pages/CreatePost';
+import MyPosts from './pages/MyPosts';
+import EditPost from './pages/EditPost';
 import ProtectedRoute from './components/ProtectedRoute';
+import ViewPost from './pages/ViewPost';
 
 function AppContent() {
   const { isAuthenticated, logout, user, loading } = useAuth();
@@ -40,6 +44,12 @@ function AppContent() {
               <>
                 <NavLink to="/profile" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                   {user?.fullName}
+                </NavLink>
+                <NavLink to="/create-post" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                  New Post
+                </NavLink>
+                <NavLink to="/my-posts" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                  My Posts
                 </NavLink>
                 <button className="btn-logout" onClick={handleLogout}>Logout</button>
               </>
@@ -74,6 +84,31 @@ function AppContent() {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/create-post" 
+          element={
+            <ProtectedRoute>
+              <CreatePost />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/my-posts" 
+          element={
+            <ProtectedRoute>
+              <MyPosts />
+            </ProtectedRoute>
+          }
+        />
+        <Route 
+          path="/edit-post/:blogId" 
+          element={
+            <ProtectedRoute>
+              <EditPost />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/blog/:blogId" element={<ViewPost />} />
       </Routes>
     </div>
   );
