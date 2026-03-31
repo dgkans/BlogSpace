@@ -8,6 +8,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
+import BlogList from './pages/BlogList';
+import BlogEditor from './pages/BlogEditor';
+import BlogDetails from './pages/BlogDetails';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
@@ -34,6 +37,9 @@ function AppContent() {
             <NavLink to="/" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Home</NavLink>
             <NavLink to="/contact" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Contact</NavLink>
             <NavLink to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>About</NavLink>
+            {isAuthenticated && (
+              <NavLink to="/blogs" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>My Blogs</NavLink>
+            )}
           </div>
           <div className="nav-auth">
             {isAuthenticated ? (
@@ -73,6 +79,38 @@ function AppContent() {
               <EditProfile />
             </ProtectedRoute>
           } 
+        />
+        <Route
+          path="/blogs"
+          element={
+            <ProtectedRoute>
+              <BlogList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/blogs/new"
+          element={
+            <ProtectedRoute>
+              <BlogEditor />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/blogs/:blogId"
+          element={
+            <ProtectedRoute>
+              <BlogDetails />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/blogs/:blogId/edit"
+          element={
+            <ProtectedRoute>
+              <BlogEditor />
+            </ProtectedRoute>
+          }
         />
       </Routes>
     </div>
