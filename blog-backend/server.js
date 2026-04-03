@@ -56,6 +56,23 @@ const formatBlog = (blog) => ({
   updatedAt: blog.updated_at,
 });
 
+const formatPublicBlog = (blog) => ({
+  id: blog._id,
+  title: blog.title,
+  summary: blog.summary,
+  contentHtml: blog.content_html,
+  status: blog.status,
+  publishedAt: blog.published_at,
+  createdAt: blog.created_at,
+  updatedAt: blog.updated_at,
+  author: {
+    id: blog.author?._id,
+    fullName: blog.author?.full_name || 'Unknown Author',
+  },
+});
+
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1] || req.cookies?.token;
@@ -276,6 +293,62 @@ app.delete('/api/users/:userId', verifyToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error deleting profile' });
+  }
+});
+
+app.get('/api/blogs/public', async (req, res) => {
+  const { q = '', sort = 'newest', period = 'all' } = req.query;
+  const filter = { status: 'published' };
+
+  const trimmedQuery = String(q).trim();
+  if (trimmedQuery) {
+    const queryRegex = new RegExp(escapeRegex(trimmedQuery), 'i');
+    filter.$or = [
+      { title: queryRegex },
+      { summary: queryRegex },
+      { content_html: queryRegex },
+    ];
+  }
+
+  const now = new Date();
+  if (period === '7d') {
+    filter.published_at = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+  } else if (period === '30d') {
+    filter.published_at = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+  } else if (period === '1y') {
+    filter.published_at = { $gte: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000) };
+  }
+
+  const sortDirection = sort === 'oldest' ? 1 : -1;
+
+  try {
+    const blogs = await Blog.find(filter)
+      .populate('author', 'full_name')
+      .sort({ published_at: sortDirection, created_at: sortDirection })
+      .limit(100);
+
+    res.json({ blogs: blogs.map(formatPublicBlog) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching published blogs' });
+  }
+});
+
+app.get('/api/blogs/public/:blogId', async (req, res) => {
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    }).populate('author', 'full_name');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    res.json({ blog: formatPublicBlog(blog) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching published blog details' });
   }
 });
 

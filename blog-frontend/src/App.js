@@ -11,6 +11,7 @@ import EditProfile from './pages/EditProfile';
 import BlogList from './pages/BlogList';
 import BlogEditor from './pages/BlogEditor';
 import BlogDetails from './pages/BlogDetails';
+import PublicBlogDetails from './pages/PublicBlogDetails';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
@@ -112,6 +113,7 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+        <Route path="/blogs/public/:blogId" element={<PublicBlogDetails />} />
       </Routes>
     </div>
   );

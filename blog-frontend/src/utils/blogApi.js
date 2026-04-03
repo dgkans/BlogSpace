@@ -62,4 +62,20 @@ export const blogApi = {
     });
     return parseJson(response);
   },
+
+  listPublished: async ({ q = '', period = 'all', sort = 'newest' } = {}) => {
+    const query = new URLSearchParams({
+      q,
+      period,
+      sort,
+    });
+
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public?${query.toString()}`);
+    return parseJson(response);
+  },
+
+  getPublishedById: async (blogId) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}`);
+    return parseJson(response);
+  },
 };
