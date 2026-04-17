@@ -12,6 +12,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+const REQUEST_BODY_LIMIT = process.env.REQUEST_BODY_LIMIT || '10mb';
 
 // Connect to MongoDB
 await connectDB();
@@ -21,7 +22,56 @@ app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
+
+const BLOG_STATUSES = ['draft', 'published'];
+
+const sanitizeBlogPayload = (body = {}) => {
+  const title = (body.title || '').trim();
+  const summary = (body.summary || '').trim();
+  const contentHtml = (body.contentHtml || '').trim();
+  const contentDelta = body.contentDelta;
+  const status = BLOG_STATUSES.includes(body.status) ? body.status : 'draft';
+
+  return {
+    title,
+    summary,
+    contentHtml,
+    contentDelta,
+    status,
+  };
+};
+
+const formatBlog = (blog) => ({
+  id: blog._id,
+  authorId: blog.author,
+  title: blog.title,
+  summary: blog.summary,
+  contentDelta: blog.content_delta,
+  contentHtml: blog.content_html,
+  status: blog.status,
+  publishedAt: blog.published_at,
+  createdAt: blog.created_at,
+  updatedAt: blog.updated_at,
+});
+
+const formatPublicBlog = (blog) => ({
+  id: blog._id,
+  title: blog.title,
+  summary: blog.summary,
+  contentHtml: blog.content_html,
+  status: blog.status,
+  publishedAt: blog.published_at,
+  createdAt: blog.created_at,
+  updatedAt: blog.updated_at,
+  author: {
+    id: blog.author?._id,
+    fullName: blog.author?.full_name || 'Unknown Author',
+  },
+});
+
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
@@ -61,17 +111,12 @@ app.post('/api/auth/register', async (req, res) => {
     if (existingUser) {
       return res.status(409).json({ message: 'Email already registered' });
     }
-    const lastUserWithId = await User.findOne({ id: { $ne: null } })
-      .sort({ id: -1 })
-      .select('id');
-    const nextId = lastUserWithId?.id ? lastUserWithId.id + 1 : 1;
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user
     const user = new User({
-      id: nextId,
       full_name: fullName,
       email,
       username: email.split('@')[0],
@@ -251,90 +296,38 @@ app.delete('/api/users/:userId', verifyToken, async (req, res) => {
   }
 });
 
-app.post('/api/blogs', verifyToken, async (req, res) => {
-  const { title, content, status } = req.body;
+app.get('/api/blogs/public', async (req, res) => {
+  const { q = '', sort = 'newest', period = 'all' } = req.query;
+  const filter = { status: 'published' };
 
-  if (!title || !content) {
-    return res.status(400).json({ message: 'Title and content are required' });
+  const trimmedQuery = String(q).trim();
+  if (trimmedQuery) {
+    const queryRegex = new RegExp(escapeRegex(trimmedQuery), 'i');
+    filter.$or = [
+      { title: queryRegex },
+      { summary: queryRegex },
+      { content_html: queryRegex },
+    ];
   }
 
-  try {
-    const blog = await Blog.create({
-      author_id: req.user.userId,
-      title,
-      content,
-      status: status || 'draft',
-    });
-
-    res.status(201).json({
-      message: 'Blog created successfully',
-      blog: {
-        id: blog._id,
-        title: blog.title,
-        content: blog.content,
-        status: blog.status,
-        author_id: blog.author_id,
-        created_at: blog.created_at,
-        updated_at: blog.updated_at,
-      },
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Error creating blog' });
+  const now = new Date();
+  if (period === '7d') {
+    filter.published_at = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+  } else if (period === '30d') {
+    filter.published_at = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+  } else if (period === '1y') {
+    filter.published_at = { $gte: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000) };
   }
-});
 
-app.put('/api/blogs/:blogId/publish', verifyToken, async (req, res) => {
+  const sortDirection = sort === 'oldest' ? 1 : -1;
+
   try {
-    const blog = await Blog.findById(req.params.blogId);
-    if (!blog) {
-      return res.status(404).json({ message: 'Blog not found' });
-    }
+    const blogs = await Blog.find(filter)
+      .populate('author', 'full_name')
+      .sort({ published_at: sortDirection, created_at: sortDirection })
+      .limit(100);
 
-    if (blog.author_id.toString() !== req.user.userId.toString()) {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-
-    blog.status = 'published';
-    await blog.save();
-
-    res.json({
-      message: 'Blog published',
-      blog: {
-        id: blog._id,
-        title: blog.title,
-        content: blog.content,
-        status: blog.status,
-        author_id: blog.author_id,
-        created_at: blog.created_at,
-        updated_at: blog.updated_at,
-      },
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Error publishing blog' });
-  }
-});
-
-app.get('/api/blogs/published', async (req, res) => {
-  try {
-    const blogs = await Blog.find({ status: 'published' })
-      .sort({ created_at: -1 })
-      .limit(20)
-      .populate('author_id', 'full_name username');
-
-    res.json({
-      blogs: blogs.map((b) => ({
-        id: b._id,
-        title: b.title,
-        content: b.content,
-        status: b.status,
-        author: b.author_id
-          ? { id: b.author_id._id, full_name: b.author_id.full_name, username: b.author_id.username }
-          : null,
-        created_at: b.created_at,
-      })),
-    });
+    res.json({ blogs: blogs.map(formatPublicBlog) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching published blogs' });
@@ -343,73 +336,82 @@ app.get('/api/blogs/published', async (req, res) => {
 
 app.get('/api/blogs/public/:blogId', async (req, res) => {
   try {
-    const blog = await Blog.findById(req.params.blogId).populate('author_id', 'full_name username');
-    if (!blog || blog.status !== 'published') {
-      return res.status(404).json({ message: 'Blog not found' });
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    }).populate('author', 'full_name');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
     }
 
-    res.json({
-      blog: {
-        id: blog._id,
-        title: blog.title,
-        content: blog.content,
-        status: blog.status,
-        author: blog.author_id
-          ? { id: blog.author_id._id, full_name: blog.author_id.full_name, username: blog.author_id.username }
-          : null,
-        created_at: blog.created_at,
-        updated_at: blog.updated_at,
-      },
-    });
+    res.json({ blog: formatPublicBlog(blog) });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Error fetching blog' });
+    return res.status(500).json({ message: 'Error fetching published blog details' });
   }
 });
 
-app.get('/api/blogs/mine', verifyToken, async (req, res) => {
-  try {
-    const blogs = await Blog.find({ author_id: req.user.userId })
-      .sort({ created_at: -1 })
-      .limit(50);
+app.post('/api/blogs', verifyToken, async (req, res) => {
+  const payload = sanitizeBlogPayload(req.body);
 
-    res.json({
-      blogs: blogs.map((b) => ({
-        id: b._id,
-        title: b.title,
-        content: b.content,
-        status: b.status,
-        created_at: b.created_at,
-        updated_at: b.updated_at,
-      })),
+  if (!payload.title) {
+    return res.status(400).json({ message: 'Title is required' });
+  }
+
+  if (!payload.contentDelta || !Array.isArray(payload.contentDelta.ops)) {
+    return res.status(400).json({ message: 'Valid rich text content is required' });
+  }
+
+  try {
+    const blog = new Blog({
+      author: req.user.userId,
+      title: payload.title,
+      summary: payload.summary,
+      content_delta: payload.contentDelta,
+      content_html: payload.contentHtml,
+      status: payload.status,
+      published_at: payload.status === 'published' ? new Date() : null,
     });
+
+    await blog.save();
+    res.status(201).json({ message: 'Blog created successfully', blog: formatBlog(blog) });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Error fetching your blogs' });
+    return res.status(500).json({ message: 'Error creating blog' });
+  }
+});
+
+app.get('/api/blogs', verifyToken, async (req, res) => {
+  const statusFilter = req.query.status;
+  const filter = { author: req.user.userId };
+
+  if (BLOG_STATUSES.includes(statusFilter)) {
+    filter.status = statusFilter;
+  }
+
+  try {
+    const blogs = await Blog.find(filter).sort({ updated_at: -1 });
+    res.json({ blogs: blogs.map(formatBlog) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching blogs' });
   }
 });
 
 app.get('/api/blogs/:blogId', verifyToken, async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.blogId);
+
     if (!blog) {
       return res.status(404).json({ message: 'Blog not found' });
     }
 
-    if (blog.author_id.toString() !== req.user.userId.toString()) {
+    if (String(blog.author) !== req.user.userId) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    res.json({
-      blog: {
-        id: blog._id,
-        title: blog.title,
-        content: blog.content,
-        status: blog.status,
-        created_at: blog.created_at,
-        updated_at: blog.updated_at,
-      },
-    });
+    res.json({ blog: formatBlog(blog) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching blog' });
@@ -417,7 +419,15 @@ app.get('/api/blogs/:blogId', verifyToken, async (req, res) => {
 });
 
 app.put('/api/blogs/:blogId', verifyToken, async (req, res) => {
-  const { title, content, status } = req.body;
+  const payload = sanitizeBlogPayload(req.body);
+
+  if (!payload.title) {
+    return res.status(400).json({ message: 'Title is required' });
+  }
+
+  if (!payload.contentDelta || !Array.isArray(payload.contentDelta.ops)) {
+    return res.status(400).json({ message: 'Valid rich text content is required' });
+  }
 
   try {
     const blog = await Blog.findById(req.params.blogId);
@@ -425,51 +435,52 @@ app.put('/api/blogs/:blogId', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Blog not found' });
     }
 
-    if (blog.author_id.toString() !== req.user.userId.toString()) {
+    if (String(blog.author) !== req.user.userId) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    const updates = {};
+    blog.title = payload.title;
+    blog.summary = payload.summary;
+    blog.content_delta = payload.contentDelta;
+    blog.content_html = payload.contentHtml;
 
-    if (title !== undefined) {
-      if (!title.trim()) {
-        return res.status(400).json({ message: 'Title cannot be empty' });
-      }
-      updates.title = title.trim();
+    if (payload.status === 'published' && blog.status !== 'published') {
+      blog.published_at = new Date();
     }
 
-    if (content !== undefined) {
-      if (!content.trim()) {
-        return res.status(400).json({ message: 'Content cannot be empty' });
-      }
-      updates.content = content;
+    if (payload.status === 'draft') {
+      blog.published_at = null;
     }
 
-    if (status !== undefined) {
-      const allowed = ['draft', 'published', 'archived'];
-      if (!allowed.includes(status)) {
-        return res.status(400).json({ message: 'Invalid status' });
-      }
-      updates.status = status;
-    }
+    blog.status = payload.status;
 
-    await Blog.findByIdAndUpdate(req.params.blogId, { $set: updates }, { new: true });
-
-    const updated = await Blog.findById(req.params.blogId);
-    res.json({
-      message: 'Blog updated successfully',
-      blog: {
-        id: updated._id,
-        title: updated.title,
-        content: updated.content,
-        status: updated.status,
-        created_at: updated.created_at,
-        updated_at: updated.updated_at,
-      },
-    });
+    await blog.save();
+    res.json({ message: 'Blog updated successfully', blog: formatBlog(blog) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error updating blog' });
+  }
+});
+
+app.post('/api/blogs/:blogId/publish', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.blogId);
+    if (!blog) {
+      return res.status(404).json({ message: 'Blog not found' });
+    }
+
+    if (String(blog.author) !== req.user.userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    blog.status = 'published';
+    blog.published_at = new Date();
+
+    await blog.save();
+    res.json({ message: 'Blog published successfully', blog: formatBlog(blog) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error publishing blog' });
   }
 });
 
@@ -480,12 +491,11 @@ app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Blog not found' });
     }
 
-    if (blog.author_id.toString() !== req.user.userId.toString()) {
+    if (String(blog.author) !== req.user.userId) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
     await Blog.findByIdAndDelete(req.params.blogId);
-
     res.json({ message: 'Blog deleted successfully' });
   } catch (err) {
     console.error(err);
@@ -493,8 +503,13 @@ app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
   }
 });
 
-// Error handling
 app.use((err, req, res, next) => {
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({
+      message: `Payload too large. Reduce image size or use image hosting. Max body size: ${REQUEST_BODY_LIMIT}`,
+    });
+  }
+
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
