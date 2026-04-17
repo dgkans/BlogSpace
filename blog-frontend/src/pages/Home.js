@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { blogApi } from '../utils/blogApi';
+import { useAuth } from '../context/AuthContext';
 
 function Home() {
+  const { token, user } = useAuth();
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [period, setPeriod] = useState('all');
@@ -10,6 +12,8 @@ function Home() {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [busyLikeId, setBusyLikeId] = useState(null);
+  const [likeHint, setLikeHint] = useState('');
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -25,7 +29,7 @@ function Home() {
       setError('');
 
       try {
-        const data = await blogApi.listPublished({ q: searchQuery, period, sort });
+        const data = await blogApi.listPublished({ q: searchQuery, period, sort, token });
         setBlogs(data.blogs || []);
       } catch (fetchError) {
         setError(fetchError.message || 'Could not load published blogs');
@@ -35,7 +39,7 @@ function Home() {
     };
 
     fetchPublishedBlogs();
-  }, [searchQuery, period, sort]);
+  }, [searchQuery, period, sort, token]);
 
   const resultLabel = useMemo(() => {
     if (loading) return 'Loading published blogs...';
@@ -45,6 +49,32 @@ function Home() {
   const formatDate = (value) => {
     if (!value) return 'Unknown date';
     return new Date(value).toLocaleDateString();
+  };
+
+  const isOwnPost = (blog) => user && blog.author?.id && String(blog.author.id) === String(user.id);
+
+  const onLikeClick = async (blog, ev) => {
+    ev.preventDefault();
+    setLikeHint('');
+    if (!token) {
+      setLikeHint('Sign in to like posts.');
+      return;
+    }
+    if (isOwnPost(blog)) return;
+
+    setBusyLikeId(blog.id);
+    try {
+      const data = await blogApi.togglePublishedLike(token, blog.id);
+      setBlogs((prev) =>
+        prev.map((b) =>
+          b.id === blog.id ? { ...b, likeCount: data.likeCount, liked: data.liked } : b
+        )
+      );
+    } catch (err) {
+      setLikeHint(err.message || 'Like did not go through.');
+    } finally {
+      setBusyLikeId(null);
+    }
   };
 
   return (
@@ -88,6 +118,7 @@ function Home() {
         </div>
 
         {error && <p className="home-published-error">{error}</p>}
+        {likeHint && <p className="home-published-error">{likeHint}</p>}
 
         {!loading && blogs.length === 0 && !error && (
           <div className="home-published-empty">
@@ -105,7 +136,25 @@ function Home() {
               </div>
               <h3>{blog.title}</h3>
               <p>{blog.summary || 'No summary provided.'}</p>
-              <Link to={`/blogs/public/${blog.id}`} className="btn-link">Read more</Link>
+              <div className="home-published-card-footer">
+                <div className="home-like-block">
+                  {isOwnPost(blog) ? (
+                    <span className="home-like-note">Your post</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className={blog.liked ? 'home-like-btn on' : 'home-like-btn'}
+                      disabled={busyLikeId === blog.id}
+                      onClick={(ev) => onLikeClick(blog, ev)}
+                    >
+                      {blog.liked ? '♥ Liked' : '♡ Like'} · {blog.likeCount ?? 0}
+                    </button>
+                  )}
+                </div>
+                <Link to={`/blogs/public/${blog.id}`} className="btn-link">
+                  Read more
+                </Link>
+              </div>
             </article>
           ))}
           {loading && (

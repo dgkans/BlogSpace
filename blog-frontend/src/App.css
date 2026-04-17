@@ -268,6 +268,53 @@ body {
   margin-bottom: 0.8rem;
 }
 
+.home-published-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eee;
+}
+
+.home-like-block {
+  display: flex;
+  align-items: center;
+}
+
+.home-like-btn {
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px;
+  border: 1px solid #bbb;
+  background: #fafafa;
+  color: #333;
+}
+
+.home-like-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.home-like-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.home-like-btn.on {
+  border-color: #c62828;
+  color: #b71c1c;
+  background: #ffebee;
+}
+
+.home-like-note {
+  font-size: 0.9rem;
+  color: #777;
+}
+
 .home-published-error {
   color: #b71c1c;
   margin-bottom: 1rem;

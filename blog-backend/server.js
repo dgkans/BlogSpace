@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import connectDB from './config/db.js';
 import User from './models/User.js';
 import Blog from './models/Blog.js';
+import BlogLike from './models/BlogLike.js';
 
 dotenv.config();
 
@@ -88,6 +89,43 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+const optionalAuth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1] || req.cookies?.token;
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+  } catch {
+    req.user = null;
+  }
+  next();
+};
+
+const likeCountsForBlogs = async (blogIds) => {
+  if (!blogIds.length) return new Map();
+  const rows = await BlogLike.aggregate([
+    { $match: { blog: { $in: blogIds } } },
+    { $group: { _id: '$blog', likeCount: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((r) => [String(r._id), r.likeCount]));
+};
+
+const likedBlogIdsForUser = async (blogIds, userId) => {
+  if (!blogIds.length || !userId) return new Set();
+  const rows = await BlogLike.find({ blog: { $in: blogIds }, user: userId })
+    .select('blog')
+    .lean();
+  return new Set(rows.map((r) => String(r.blog)));
+};
+
+const publicBlogJson = (doc, likeCount, liked) => ({
+  ...formatPublicBlog(doc),
+  likeCount,
+  liked,
+});
+
 // Routes
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to Blog Backend API' });
@@ -115,20 +153,34 @@ app.post('/api/auth/register', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
+    const lastUserWithId = await User.findOne({ id: { $ne: null } })
+      .sort({ id: -1 })
+      .select('id');
+    const nextId = lastUserWithId?.id ? lastUserWithId.id + 1 : 1;
+
+    const baseUsername = (email.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_]/g, '') || 'user';
+    let username = baseUsername;
+    let suffix = 0;
+    while (await User.findOne({ username })) {
+      suffix += 1;
+      username = `${baseUsername}_${suffix}`;
+    }
+
+    // Create new user (numeric id required for unique index on users.id)
     const user = new User({
+      id: nextId,
       full_name: fullName,
       email,
-      username: email.split('@')[0],
+      username,
       hashed_password: hashedPassword,
-      is_active: true
+      is_active: true,
     });
 
     await user.save();
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: user._id.toString(), email: user.email },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -170,7 +222,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: user._id.toString(), email: user.email },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -296,7 +348,7 @@ app.delete('/api/users/:userId', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/blogs/public', async (req, res) => {
+app.get('/api/blogs/public', optionalAuth, async (req, res) => {
   const { q = '', sort = 'newest', period = 'all' } = req.query;
   const filter = { status: 'published' };
 
@@ -320,6 +372,7 @@ app.get('/api/blogs/public', async (req, res) => {
   }
 
   const sortDirection = sort === 'oldest' ? 1 : -1;
+  const viewerId = req.user?.userId || null;
 
   try {
     const blogs = await Blog.find(filter)
@@ -327,14 +380,24 @@ app.get('/api/blogs/public', async (req, res) => {
       .sort({ published_at: sortDirection, created_at: sortDirection })
       .limit(100);
 
-    res.json({ blogs: blogs.map(formatPublicBlog) });
+    const ids = blogs.map((b) => b._id);
+    const countMap = await likeCountsForBlogs(ids);
+    const likedSet = await likedBlogIdsForUser(ids, viewerId);
+
+    const payload = blogs.map((b) =>
+      publicBlogJson(b, countMap.get(String(b._id)) || 0, viewerId ? likedSet.has(String(b._id)) : false)
+    );
+
+    res.json({ blogs: payload });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching published blogs' });
   }
 });
 
-app.get('/api/blogs/public/:blogId', async (req, res) => {
+app.get('/api/blogs/public/:blogId', optionalAuth, async (req, res) => {
+  const viewerId = req.user?.userId || null;
+
   try {
     const blog = await Blog.findOne({
       _id: req.params.blogId,
@@ -345,10 +408,53 @@ app.get('/api/blogs/public/:blogId', async (req, res) => {
       return res.status(404).json({ message: 'Published blog not found' });
     }
 
-    res.json({ blog: formatPublicBlog(blog) });
+    const likeCount = await BlogLike.countDocuments({ blog: blog._id });
+    let liked = false;
+    if (viewerId) {
+      liked = !!(await BlogLike.findOne({ blog: blog._id, user: viewerId }));
+    }
+
+    res.json({ blog: publicBlogJson(blog, likeCount, liked) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching published blog details' });
+  }
+});
+
+app.post('/api/blogs/public/:blogId/like', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    });
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    if (String(blog.author) === req.user.userId) {
+      return res.status(400).json({ message: "You can't like your own blog" });
+    }
+
+    const existing = await BlogLike.findOne({
+      blog: blog._id,
+      user: req.user.userId,
+    });
+
+    let liked;
+    if (existing) {
+      await existing.deleteOne();
+      liked = false;
+    } else {
+      await BlogLike.create({ blog: blog._id, user: req.user.userId });
+      liked = true;
+    }
+
+    const likeCount = await BlogLike.countDocuments({ blog: blog._id });
+    res.json({ liked, likeCount });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error updating like' });
   }
 });
 
@@ -495,6 +601,7 @@ app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
+    await BlogLike.deleteMany({ blog: req.params.blogId });
     await Blog.findByIdAndDelete(req.params.blogId);
     res.json({ message: 'Blog deleted successfully' });
   } catch (err) {

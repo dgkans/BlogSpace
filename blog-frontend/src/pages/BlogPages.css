@@ -179,6 +179,54 @@
   height: auto;
 }
 
+.blog-like-bar {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.blog-like-btn {
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.45rem 0.85rem;
+  border-radius: 4px;
+  border: 1px solid #bbb;
+  background: #fafafa;
+  color: #333;
+}
+
+.blog-like-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.blog-like-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.blog-like-btn.on {
+  border-color: #c62828;
+  color: #b71c1c;
+  background: #ffebee;
+}
+
+.blog-like-note {
+  font-size: 0.95rem;
+  color: #777;
+}
+
+.blog-like-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #b71c1c;
+}
+
 @media (max-width: 768px) {
   .blog-list-header,
   .blog-editor-header,
