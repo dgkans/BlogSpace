@@ -8,11 +8,11 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
-import CreatePost from './pages/CreatePost';
-import MyPosts from './pages/MyPosts';
-import EditPost from './pages/EditPost';
+import BlogList from './pages/BlogList';
+import BlogEditor from './pages/BlogEditor';
+import BlogDetails from './pages/BlogDetails';
+import PublicBlogDetails from './pages/PublicBlogDetails';
 import ProtectedRoute from './components/ProtectedRoute';
-import ViewPost from './pages/ViewPost';
 
 function AppContent() {
   const { isAuthenticated, logout, user, loading } = useAuth();
@@ -38,18 +38,15 @@ function AppContent() {
             <NavLink to="/" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Home</NavLink>
             <NavLink to="/contact" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Contact</NavLink>
             <NavLink to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>About</NavLink>
+            {isAuthenticated && (
+              <NavLink to="/blogs" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>My Blogs</NavLink>
+            )}
           </div>
           <div className="nav-auth">
             {isAuthenticated ? (
               <>
                 <NavLink to="/profile" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                   {user?.fullName}
-                </NavLink>
-                <NavLink to="/create-post" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                  New Post
-                </NavLink>
-                <NavLink to="/my-posts" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                  My Posts
                 </NavLink>
                 <button className="btn-logout" onClick={handleLogout}>Logout</button>
               </>
@@ -84,31 +81,39 @@ function AppContent() {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/create-post" 
+        <Route
+          path="/blogs"
           element={
             <ProtectedRoute>
-              <CreatePost />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/my-posts" 
-          element={
-            <ProtectedRoute>
-              <MyPosts />
+              <BlogList />
             </ProtectedRoute>
           }
         />
-        <Route 
-          path="/edit-post/:blogId" 
+        <Route
+          path="/blogs/new"
           element={
             <ProtectedRoute>
-              <EditPost />
+              <BlogEditor />
             </ProtectedRoute>
           }
         />
-        <Route path="/blog/:blogId" element={<ViewPost />} />
+        <Route
+          path="/blogs/:blogId"
+          element={
+            <ProtectedRoute>
+              <BlogDetails />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/blogs/:blogId/edit"
+          element={
+            <ProtectedRoute>
+              <BlogEditor />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/blogs/public/:blogId" element={<PublicBlogDetails />} />
       </Routes>
     </div>
   );
