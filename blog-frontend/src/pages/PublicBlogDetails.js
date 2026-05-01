@@ -10,8 +10,8 @@ function PublicBlogDetails() {
   const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [likeBusy, setLikeBusy] = useState(false);
-  const [likeHint, setLikeHint] = useState('');
+  const [reactionBusy, setReactionBusy] = useState(false);
+  const [reactionHint, setReactionHint] = useState('');
 
   useEffect(() => {
     const loadBlog = async () => {
@@ -36,23 +36,60 @@ function PublicBlogDetails() {
   const ownPost = user && blog?.author?.id && String(blog.author.id) === String(user.id);
 
   const onLike = async () => {
-    setLikeHint('');
+    setReactionHint('');
     if (!token) {
-      setLikeHint('Sign in to like posts.');
+      setReactionHint('Sign in to react to posts.');
       return;
     }
     if (ownPost) return;
 
-    setLikeBusy(true);
+    setReactionBusy(true);
     try {
       const data = await blogApi.togglePublishedLike(token, blogId);
       setBlog((prev) =>
-        prev ? { ...prev, likeCount: data.likeCount, liked: data.liked } : prev
+        prev
+          ? {
+              ...prev,
+              likeCount: data.likeCount,
+              liked: data.liked,
+              dislikeCount: data.dislikeCount,
+              disliked: data.disliked,
+            }
+          : prev
       );
     } catch (err) {
-      setLikeHint(err.message || 'Like did not go through.');
+      setReactionHint(err.message || 'Like did not go through.');
     } finally {
-      setLikeBusy(false);
+      setReactionBusy(false);
+    }
+  };
+
+  const onDislike = async () => {
+    setReactionHint('');
+    if (!token) {
+      setReactionHint('Sign in to react to posts.');
+      return;
+    }
+    if (ownPost) return;
+
+    setReactionBusy(true);
+    try {
+      const data = await blogApi.togglePublishedDislike(token, blogId);
+      setBlog((prev) =>
+        prev
+          ? {
+              ...prev,
+              likeCount: data.likeCount,
+              liked: data.liked,
+              dislikeCount: data.dislikeCount,
+              disliked: data.disliked,
+            }
+          : prev
+      );
+    } catch (err) {
+      setReactionHint(err.message || 'Dislike did not go through.');
+    } finally {
+      setReactionBusy(false);
     }
   };
 
@@ -88,16 +125,26 @@ function PublicBlogDetails() {
             {ownPost ? (
               <span className="blog-like-note">Your post</span>
             ) : (
-              <button
-                type="button"
-                className={blog.liked ? 'blog-like-btn on' : 'blog-like-btn'}
-                disabled={likeBusy}
-                onClick={onLike}
-              >
-                {blog.liked ? '♥ Liked' : '♡ Like'} · {blog.likeCount ?? 0}
-              </button>
+              <div className="blog-reaction-row">
+                <button
+                  type="button"
+                  className={blog.liked ? 'blog-like-btn on' : 'blog-like-btn'}
+                  disabled={reactionBusy}
+                  onClick={onLike}
+                >
+                  {blog.liked ? '♥ Liked' : '♡ Like'} · {blog.likeCount ?? 0}
+                </button>
+                <button
+                  type="button"
+                  className={blog.disliked ? 'blog-dislike-btn on' : 'blog-dislike-btn'}
+                  disabled={reactionBusy}
+                  onClick={onDislike}
+                >
+                  {blog.disliked ? '👎 Disliked' : '👎 Dislike'} · {blog.dislikeCount ?? 0}
+                </button>
+              </div>
             )}
-            {likeHint && <p className="blog-like-hint">{likeHint}</p>}
+            {reactionHint && <p className="blog-like-hint">{reactionHint}</p>}
           </section>
 
           <section className="editor-card">
