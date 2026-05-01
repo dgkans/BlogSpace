@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { blogApi } from '../utils/blogApi';
-import './BlogPages.css';
 
 function BlogList() {
   const { token } = useAuth();

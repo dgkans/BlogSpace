@@ -10,60 +10,47 @@ function Profile() {
   const { user, token, logout } = useAuth();
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    if (!user) { navigate('/login'); return; }
     fetchProfile();
   }, [user, navigate, token]);
 
   const fetchProfile = async () => {
     try {
       const response = await fetch(`http://localhost:5001/api/users/${user.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch profile');
-      }
-
+      if (!response.ok) throw new Error('Failed to fetch profile');
       const data = await response.json();
       setProfile(data.user);
     } catch (err) {
       setError('Error loading profile');
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-      try {
-        const response = await fetch(`http://localhost:5001/api/users/${user.id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete profile');
-        }
-
-        logout();
-        navigate('/');
-      } catch (err) {
-        setError('Error deleting profile');
-        console.error(err);
-      }
+    if (!window.confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
+    try {
+      const response = await fetch(`http://localhost:5001/api/users/${user.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to delete profile');
+      logout();
+      navigate('/');
+    } catch (err) {
+      setError('Error deleting profile');
     }
   };
 
   if (loading) {
-    return <div className="page-content"><div className="loading">Loading profile...</div></div>;
+    return (
+      <div className="page-content profile-loading">
+        <div className="loading-spinner" />
+        <p>Loading profile…</p>
+      </div>
+    );
   }
 
   if (error) {
@@ -74,40 +61,79 @@ function Profile() {
     return <div className="page-content"><div className="error-message">Profile not found</div></div>;
   }
 
-  const createdDate = new Date(profile.createdAt).toLocaleDateString();
+  const initials = profile.fullName
+    ? profile.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    : '?';
+
+  const joinDate = new Date(profile.createdAt).toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  });
 
   return (
     <main className="page-content">
-      <div className="profile-container">
-        <div className="profile-header">
-          <h1>My Profile</h1>
-        </div>
+      <div className="profile-page">
 
-        <div className="profile-info">
-          <div className="info-item">
-            <div className="info-label">Full Name</div>
-            <div className="info-value">{profile.fullName}</div>
+        {/* Left panel — avatar + quick actions */}
+        <aside className="profile-sidebar">
+          <div className="profile-avatar-wrap">
+            <div className="profile-avatar">{initials}</div>
+          </div>
+          <h2 className="profile-name">{profile.fullName}</h2>
+          <p className="profile-username">@{profile.username}</p>
+          <p className="profile-joined">Member since {joinDate}</p>
+
+          <div className="profile-sidebar-actions">
+            <Link to="/edit-profile" className="btn-primary profile-btn">Edit Profile</Link>
+            <button className="btn-danger profile-btn" onClick={handleDelete}>Delete Account</button>
+          </div>
+        </aside>
+
+        {/* Right panel — info fields */}
+        <div className="profile-main">
+          <h1 className="profile-main-title">My Profile</h1>
+
+          <div className="profile-fields">
+            <div className="profile-field">
+              <div className="profile-field-label">
+                <span className="profile-field-icon">👤</span> Full Name
+              </div>
+              <div className="profile-field-value">{profile.fullName}</div>
+            </div>
+
+            <div className="profile-field">
+              <div className="profile-field-label">
+                <span className="profile-field-icon">📧</span> Email Address
+              </div>
+              <div className="profile-field-value">{profile.email}</div>
+            </div>
+
+            <div className="profile-field">
+              <div className="profile-field-label">
+                <span className="profile-field-icon">🔖</span> Username
+              </div>
+              <div className="profile-field-value">@{profile.username}</div>
+            </div>
+
+            <div className="profile-field">
+              <div className="profile-field-label">
+                <span className="profile-field-icon">📅</span> Member Since
+              </div>
+              <div className="profile-field-value">{joinDate}</div>
+            </div>
           </div>
 
-          <div className="info-item">
-            <div className="info-label">Email</div>
-            <div className="info-value">{profile.email}</div>
+          <div className="profile-quick-links">
+            <Link to="/blogs" className="profile-quick-link">
+              <span className="pql-icon">✍️</span>
+              <span className="pql-label">My Blogs</span>
+              <span className="pql-arrow">→</span>
+            </Link>
+            <Link to="/blogs/new" className="profile-quick-link">
+              <span className="pql-icon">✨</span>
+              <span className="pql-label">Write New Post</span>
+              <span className="pql-arrow">→</span>
+            </Link>
           </div>
-
-          <div className="info-item">
-            <div className="info-label">Username</div>
-            <div className="info-value">@{profile.username}</div>
-          </div>
-
-          <div className="info-item">
-            <div className="info-label">Member Since</div>
-            <div className="info-value">{createdDate}</div>
-          </div>
-        </div>
-
-        <div className="profile-actions">
-          <Link to="/edit-profile" className="btn-primary">Edit Profile</Link>
-          <button className="btn-danger" onClick={handleDelete}>Delete Account</button>
         </div>
       </div>
     </main>

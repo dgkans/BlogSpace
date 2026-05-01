@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { blogApi } from '../utils/blogApi';
-import './BlogPages.css';
 
 function BlogDetails() {
   const { blogId } = useParams();

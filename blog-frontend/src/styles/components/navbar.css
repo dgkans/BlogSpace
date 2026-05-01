@@ -1,0 +1,173 @@
+.App-header {
+  background: #fff;
+  padding: 0;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  height: 60px;
+  gap: 1rem;
+}
+
+/* Logo — primary home navigation */
+.logo {
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-decoration: none;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.nav-auth {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Generic nav link */
+.nav-link {
+  color: #4b5563;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  color: #111827;
+  background: #f3f4f6;
+  text-decoration: none;
+}
+
+.nav-link.active {
+  color: #2563eb;
+  background: #eff6ff;
+  font-weight: 600;
+}
+
+/* User name link in auth area */
+.nav-auth .nav-link {
+  color: #374151;
+  font-weight: 600;
+}
+
+.nav-auth .nav-link.active {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+/* Logout button */
+.btn-logout {
+  padding: 0.4rem 0.9rem;
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.15s;
+}
+
+.btn-logout:hover {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+/* Shared filled button base */
+.btn-primary,
+.btn-danger {
+  padding: 0.4rem 0.9rem;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: #2563eb;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-danger {
+  background: #dc2626;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
+/* Sign Up pill */
+.nav-register {
+  background: #2563eb !important;
+  color: #fff !important;
+  padding: 0.4rem 1rem !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  text-decoration: none !important;
+  transition: background 0.15s !important;
+}
+
+.nav-register:hover {
+  background: #1d4ed8 !important;
+  color: #fff !important;
+}
+
+.nav-register.active {
+  background: #1d4ed8 !important;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .nav {
+    padding: 0 1rem;
+    flex-wrap: wrap;
+    height: auto;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+    gap: 0.5rem;
+  }
+
+  .nav-links {
+    order: 3;
+    width: 100%;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+
+  .nav-auth {
+    margin-left: auto;
+  }
+}
