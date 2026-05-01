@@ -1,98 +1,113 @@
 import React from 'react';
 
+const TEAM = [
+  {
+    name: 'Gaurav',
+    role: 'Full Stack Developer',
+    description: 'Expert in backend architecture and API design. Passionate about building scalable, resilient systems.',
+    gradient: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+  },
+  {
+    name: 'Anuj',
+    role: 'Full Stack Developer',
+    description: 'Specialises in crafting intuitive interfaces and seamless user experiences that delight every visitor.',
+    gradient: 'linear-gradient(135deg, #0891b2, #2563eb)',
+  },
+  {
+    name: 'Mukul',
+    role: 'Full Stack Developer',
+    description: 'Focused on database optimisation and system performance. Loves untangling complex engineering problems.',
+    gradient: 'linear-gradient(135deg, #7c3aed, #db2777)',
+  },
+];
+
+const VALUES = [
+  { icon: '🎯', title: 'Simplicity',  text: 'Intuitive design that anyone can use effortlessly, no manual needed.' },
+  { icon: '🤝', title: 'Community',   text: 'We foster connections and encourage collaboration among our users.' },
+  { icon: '💡', title: 'Innovation',  text: 'We continuously ship improvements based on real user feedback.' },
+  { icon: '🔒', title: 'Security',    text: 'Your privacy and content are protected with industry best practices.' },
+];
+
 function AboutUs() {
-  const teamMembers = [
-    {
-      name: 'Gaurav',
-      role: 'Full Stack Developer',
-      description: 'Expert in backend architecture and API design. Passionate about building scalable solutions.'
-    },
-    {
-      name: 'Anuj',
-      role: 'Frontend Developer',
-      description: 'Specialized in creating intuitive user interfaces and seamless user experiences.'
-    },
-    {
-      name: 'Mukul',
-      role: 'Full Stack Developer',
-      description: 'Focused on database optimization and system performance. Loves solving complex problems.'
-    }
-  ];
-
   return (
-    <main className="page-content">
-      <section className="about-section">
-        <div className="about-header">
-          <h1>About Us</h1>
-          <p className="about-tagline">Building the future of blogging, one post at a time</p>
+    <main>
+      {/* Hero */}
+      <section className="about-hero">
+        <div className="about-hero-inner">
+          <div className="about-hero-badge">Our Story</div>
+          <h1>Built by writers,<br /><span className="about-hero-accent">for writers.</span></h1>
+          <p>
+            Blogspace started as a passion project among three developers who wanted
+            a platform that's powerful yet simple — where ideas take centre stage.
+          </p>
         </div>
+      </section>
 
-        <div className="about-content">
-          <section className="mission-section">
+      <div className="page-content">
+
+        {/* Mission + Vision */}
+        <section className="about-mv-grid">
+          <div className="about-mv-card">
+            <div className="about-mv-icon">🚀</div>
             <h2>Our Mission</h2>
             <p>
-              We believe everyone has a story to tell. Blog App is dedicated to providing a modern,
-              user-friendly platform where writers, creators, and thinkers can share their ideas with
-              the world. Our mission is to democratize content creation and foster a vibrant community
-              of bloggers.
+              We believe everyone has a story to tell. Blogspace is dedicated to providing
+              a modern, user-friendly platform where writers, creators, and thinkers can
+              share their ideas freely — without the complexity.
             </p>
-          </section>
-
-          <section className="vision-section">
+          </div>
+          <div className="about-mv-card">
+            <div className="about-mv-icon">🌟</div>
             <h2>Our Vision</h2>
             <p>
-              To create an inclusive digital space where creativity thrives, diverse voices are heard,
-              and meaningful connections are made. We envision a world where technology empowers
-              individuals to express themselves freely and discover content that inspires them.
+              An inclusive digital space where creativity thrives, diverse voices are heard,
+              and meaningful connections are made. Technology should empower expression,
+              not get in the way of it.
             </p>
-          </section>
+          </div>
+        </section>
 
-          <section className="values-section">
-            <h2>Our Core Values</h2>
-            <div className="values-grid">
-              <div className="value-card">
-                <div className="value-icon">🎯</div>
-                <h3>Simplicity</h3>
-                <p>We believe in intuitive design that anyone can use effortlessly.</p>
+        {/* Values */}
+        <section className="about-values-section">
+          <div className="about-section-header">
+            <h2>Core Values</h2>
+            <p>The principles that guide every decision we make.</p>
+          </div>
+          <div className="about-values-grid">
+            {VALUES.map(({ icon, title, text }) => (
+              <div key={title} className="about-value-card">
+                <div className="about-value-icon">{icon}</div>
+                <h3>{title}</h3>
+                <p>{text}</p>
               </div>
-              <div className="value-card">
-                <div className="value-icon">🤝</div>
-                <h3>Community</h3>
-                <p>We foster connections and encourage collaboration among our users.</p>
-              </div>
-              <div className="value-card">
-                <div className="value-icon">💡</div>
-                <h3>Innovation</h3>
-                <p>We continuously improve and innovate to serve our community better.</p>
-              </div>
-              <div className="value-card">
-                <div className="value-icon">🔒</div>
-                <h3>Security</h3>
-                <p>We prioritize your privacy and protect your content with industry standards.</p>
-              </div>
-            </div>
-          </section>
+            ))}
+          </div>
+        </section>
 
-          <section className="team-section">
-            <h2>Our Team</h2>
-            <p className="team-intro">
-              Meet the passionate developers behind Blog App. We're a dedicated team committed to
-              delivering the best blogging experience.
-            </p>
-            <div className="team-grid">
-              {teamMembers.map((member) => (
-                <div key={member.name} className="team-card">
-                  <div className="team-avatar">{member.name.charAt(0)}</div>
-                  <h3>{member.name}</h3>
-                  <p className="team-role">{member.role}</p>
-                  <p className="team-description">{member.description}</p>
+        {/* Team */}
+        <section className="about-team-section">
+          <div className="about-section-header">
+            <h2>Meet the Team</h2>
+            <p>Three developers, one shared obsession with great software.</p>
+          </div>
+          <div className="about-team-grid">
+            {TEAM.map(({ name, role, description, gradient }) => (
+              <div key={name} className="about-team-card">
+                <div className="about-team-avatar" style={{ background: gradient }}>
+                  {name.charAt(0)}
                 </div>
-              ))}
-            </div>
-          </section>
+                <h3>{name}</h3>
+                <span className="about-team-role">{role}</span>
+                <p>{description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-          <section className="story-section">
-            <h2>Our Story</h2>
+        {/* Story */}
+        <section className="about-story-section">
+          <div className="about-story-inner">
+            <h2>How it started</h2>
             <p>
               Blog App was born out of a simple observation: the world needed a blogging platform
               that combines powerful features with ease of use. We started this project with a vision
@@ -100,13 +115,14 @@ function AboutUs() {
               individuals, and build their personal brand.
             </p>
             <p>
-              What began as a passion project among three developers has evolved into a comprehensive
-              blogging platform. Today, we continue to innovate and enhance our platform based on user
-              feedback, always keeping the creator's experience at the heart of our decisions.
+              What began as a side project among three developers has grown into a comprehensive
+              platform. We continue to ship improvements based on user feedback, always keeping
+              the creator's experience at the heart of every decision.
             </p>
-          </section>
-        </div>
-      </section>
+          </div>
+        </section>
+
+      </div>
     </main>
   );
 }

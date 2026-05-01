@@ -31,11 +31,8 @@ function AppContent() {
     <div className="App">
       <header className="App-header">
         <nav className="nav">
-          <NavLink to="/" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-            <span className="logo">Blog</span>
-          </NavLink>
+          <NavLink to="/" className="logo">Blogspace</NavLink>
           <div className="nav-links">
-            <NavLink to="/" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Home</NavLink>
             <NavLink to="/contact" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Contact</NavLink>
             <NavLink to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>About</NavLink>
             {isAuthenticated && (

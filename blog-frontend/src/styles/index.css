@@ -11,6 +11,8 @@
 
 /* Pages */
 @import './pages/home.css';
+@import './pages/about.css';
+@import './pages/contact.css';
 @import './pages/profile.css';
 @import './pages/blog.css';
 
