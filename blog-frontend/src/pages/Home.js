@@ -12,8 +12,8 @@ function Home() {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [busyLikeId, setBusyLikeId] = useState(null);
-  const [likeHint, setLikeHint] = useState('');
+  const [busyReactionId, setBusyReactionId] = useState(null);
+  const [reactionHint, setReactionHint] = useState('');
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -55,25 +55,65 @@ function Home() {
 
   const onLikeClick = async (blog, ev) => {
     ev.preventDefault();
-    setLikeHint('');
+    setReactionHint('');
     if (!token) {
-      setLikeHint('Sign in to like posts.');
+      setReactionHint('Sign in to react to posts.');
       return;
     }
     if (isOwnPost(blog)) return;
 
-    setBusyLikeId(blog.id);
+    setBusyReactionId(blog.id);
     try {
       const data = await blogApi.togglePublishedLike(token, blog.id);
       setBlogs((prev) =>
         prev.map((b) =>
-          b.id === blog.id ? { ...b, likeCount: data.likeCount, liked: data.liked } : b
+          b.id === blog.id
+            ? {
+                ...b,
+                likeCount: data.likeCount,
+                liked: data.liked,
+                dislikeCount: data.dislikeCount,
+                disliked: data.disliked,
+              }
+            : b
         )
       );
     } catch (err) {
-      setLikeHint(err.message || 'Like did not go through.');
+      setReactionHint(err.message || 'Like did not go through.');
     } finally {
-      setBusyLikeId(null);
+      setBusyReactionId(null);
+    }
+  };
+
+  const onDislikeClick = async (blog, ev) => {
+    ev.preventDefault();
+    setReactionHint('');
+    if (!token) {
+      setReactionHint('Sign in to react to posts.');
+      return;
+    }
+    if (isOwnPost(blog)) return;
+
+    setBusyReactionId(blog.id);
+    try {
+      const data = await blogApi.togglePublishedDislike(token, blog.id);
+      setBlogs((prev) =>
+        prev.map((b) =>
+          b.id === blog.id
+            ? {
+                ...b,
+                likeCount: data.likeCount,
+                liked: data.liked,
+                dislikeCount: data.dislikeCount,
+                disliked: data.disliked,
+              }
+            : b
+        )
+      );
+    } catch (err) {
+      setReactionHint(err.message || 'Dislike did not go through.');
+    } finally {
+      setBusyReactionId(null);
     }
   };
 
@@ -118,7 +158,7 @@ function Home() {
         </div>
 
         {error && <p className="home-published-error">{error}</p>}
-        {likeHint && <p className="home-published-error">{likeHint}</p>}
+        {reactionHint && <p className="home-published-error">{reactionHint}</p>}
 
         {!loading && blogs.length === 0 && !error && (
           <div className="home-published-empty">
@@ -141,14 +181,24 @@ function Home() {
                   {isOwnPost(blog) ? (
                     <span className="home-like-note">Your post</span>
                   ) : (
-                    <button
-                      type="button"
-                      className={blog.liked ? 'home-like-btn on' : 'home-like-btn'}
-                      disabled={busyLikeId === blog.id}
-                      onClick={(ev) => onLikeClick(blog, ev)}
-                    >
-                      {blog.liked ? '♥ Liked' : '♡ Like'} · {blog.likeCount ?? 0}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className={blog.liked ? 'home-like-btn on' : 'home-like-btn'}
+                        disabled={busyReactionId === blog.id}
+                        onClick={(ev) => onLikeClick(blog, ev)}
+                      >
+                        {blog.liked ? '♥ Liked' : '♡ Like'} · {blog.likeCount ?? 0}
+                      </button>
+                      <button
+                        type="button"
+                        className={blog.disliked ? 'home-dislike-btn on' : 'home-dislike-btn'}
+                        disabled={busyReactionId === blog.id}
+                        onClick={(ev) => onDislikeClick(blog, ev)}
+                      >
+                        {blog.disliked ? '👎 Disliked' : '👎 Dislike'} · {blog.dislikeCount ?? 0}
+                      </button>
+                    </>
                   )}
                 </div>
                 <Link to={`/blogs/public/${blog.id}`} className="btn-link">

@@ -7,6 +7,7 @@ import connectDB from './config/db.js';
 import User from './models/User.js';
 import Blog from './models/Blog.js';
 import BlogLike from './models/BlogLike.js';
+import BlogDislike from './models/BlogDislike.js';
 
 dotenv.config();
 
@@ -112,6 +113,15 @@ const likeCountsForBlogs = async (blogIds) => {
   return new Map(rows.map((r) => [String(r._id), r.likeCount]));
 };
 
+const dislikeCountsForBlogs = async (blogIds) => {
+  if (!blogIds.length) return new Map();
+  const rows = await BlogDislike.aggregate([
+    { $match: { blog: { $in: blogIds } } },
+    { $group: { _id: '$blog', dislikeCount: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((r) => [String(r._id), r.dislikeCount]));
+};
+
 const likedBlogIdsForUser = async (blogIds, userId) => {
   if (!blogIds.length || !userId) return new Set();
   const rows = await BlogLike.find({ blog: { $in: blogIds }, user: userId })
@@ -120,10 +130,20 @@ const likedBlogIdsForUser = async (blogIds, userId) => {
   return new Set(rows.map((r) => String(r.blog)));
 };
 
-const publicBlogJson = (doc, likeCount, liked) => ({
+const dislikedBlogIdsForUser = async (blogIds, userId) => {
+  if (!blogIds.length || !userId) return new Set();
+  const rows = await BlogDislike.find({ blog: { $in: blogIds }, user: userId })
+    .select('blog')
+    .lean();
+  return new Set(rows.map((r) => String(r.blog)));
+};
+
+const publicBlogJson = (doc, likeCount, liked, dislikeCount, disliked) => ({
   ...formatPublicBlog(doc),
   likeCount,
   liked,
+  dislikeCount,
+  disliked,
 });
 
 // Routes
@@ -382,10 +402,18 @@ app.get('/api/blogs/public', optionalAuth, async (req, res) => {
 
     const ids = blogs.map((b) => b._id);
     const countMap = await likeCountsForBlogs(ids);
+    const dislikeCountMap = await dislikeCountsForBlogs(ids);
     const likedSet = await likedBlogIdsForUser(ids, viewerId);
+    const dislikedSet = await dislikedBlogIdsForUser(ids, viewerId);
 
     const payload = blogs.map((b) =>
-      publicBlogJson(b, countMap.get(String(b._id)) || 0, viewerId ? likedSet.has(String(b._id)) : false)
+      publicBlogJson(
+        b,
+        countMap.get(String(b._id)) || 0,
+        viewerId ? likedSet.has(String(b._id)) : false,
+        dislikeCountMap.get(String(b._id)) || 0,
+        viewerId ? dislikedSet.has(String(b._id)) : false
+      )
     );
 
     res.json({ blogs: payload });
@@ -409,12 +437,15 @@ app.get('/api/blogs/public/:blogId', optionalAuth, async (req, res) => {
     }
 
     const likeCount = await BlogLike.countDocuments({ blog: blog._id });
+    const dislikeCount = await BlogDislike.countDocuments({ blog: blog._id });
     let liked = false;
+    let disliked = false;
     if (viewerId) {
       liked = !!(await BlogLike.findOne({ blog: blog._id, user: viewerId }));
+      disliked = !!(await BlogDislike.findOne({ blog: blog._id, user: viewerId }));
     }
 
-    res.json({ blog: publicBlogJson(blog, likeCount, liked) });
+    res.json({ blog: publicBlogJson(blog, likeCount, liked, dislikeCount, disliked) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching published blog details' });
@@ -447,14 +478,57 @@ app.post('/api/blogs/public/:blogId/like', verifyToken, async (req, res) => {
       liked = false;
     } else {
       await BlogLike.create({ blog: blog._id, user: req.user.userId });
+      await BlogDislike.deleteOne({ blog: blog._id, user: req.user.userId });
       liked = true;
     }
 
     const likeCount = await BlogLike.countDocuments({ blog: blog._id });
-    res.json({ liked, likeCount });
+    const dislikeCount = await BlogDislike.countDocuments({ blog: blog._id });
+    const disliked = !!(await BlogDislike.findOne({ blog: blog._id, user: req.user.userId }));
+    res.json({ liked, likeCount, disliked, dislikeCount });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error updating like' });
+  }
+});
+
+app.post('/api/blogs/public/:blogId/dislike', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    });
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    if (String(blog.author) === req.user.userId) {
+      return res.status(400).json({ message: "You can't dislike your own blog" });
+    }
+
+    const existing = await BlogDislike.findOne({
+      blog: blog._id,
+      user: req.user.userId,
+    });
+
+    let disliked;
+    if (existing) {
+      await existing.deleteOne();
+      disliked = false;
+    } else {
+      await BlogDislike.create({ blog: blog._id, user: req.user.userId });
+      await BlogLike.deleteOne({ blog: blog._id, user: req.user.userId });
+      disliked = true;
+    }
+
+    const dislikeCount = await BlogDislike.countDocuments({ blog: blog._id });
+    const likeCount = await BlogLike.countDocuments({ blog: blog._id });
+    const liked = !!(await BlogLike.findOne({ blog: blog._id, user: req.user.userId }));
+    res.json({ disliked, dislikeCount, liked, likeCount });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error updating dislike' });
   }
 });
 
@@ -602,6 +676,7 @@ app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
     }
 
     await BlogLike.deleteMany({ blog: req.params.blogId });
+    await BlogDislike.deleteMany({ blog: req.params.blogId });
     await Blog.findByIdAndDelete(req.params.blogId);
     res.json({ message: 'Blog deleted successfully' });
   } catch (err) {

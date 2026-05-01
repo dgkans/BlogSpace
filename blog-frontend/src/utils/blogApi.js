@@ -98,4 +98,12 @@ export const blogApi = {
     });
     return parseJson(response);
   },
+
+  togglePublishedDislike: async (token, blogId) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/dislike`, {
+      method: 'POST',
+      headers: authHeaders(token),
+    });
+    return parseJson(response);
+  },
 };
