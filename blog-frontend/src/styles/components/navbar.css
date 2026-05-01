@@ -1,0 +1,72 @@
+.App-header {
+  background-color: #fff;
+  padding: 1rem 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  gap: 1rem;
+}
+
+.logo {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+}
+
+.nav-auth {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-info {
+  color: #666;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.nav-link {
+  color: #666;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: #333;
+  text-decoration: underline;
+}
+
+.nav-register {
+  background-color: #333 !important;
+  color: #fff !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 4px;
+  font-weight: 500;
+  border-bottom: none !important;
+}
+
+.nav-register:hover {
+  background-color: #555 !important;
+}
+
+.nav-register.active {
+  background-color: #555 !important;
+  border-bottom: none !important;
+}

@@ -4,7 +4,6 @@ import 'react-quill/dist/quill.snow.css';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { blogApi } from '../utils/blogApi';
-import './BlogPages.css';
 
 const emptyDelta = { ops: [] };
 

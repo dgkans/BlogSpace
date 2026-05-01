@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { blogApi } from '../utils/blogApi';
 import { useAuth } from '../context/AuthContext';
-import './BlogPages.css';
 
 function PublicBlogDetails() {
   const { blogId } = useParams();
