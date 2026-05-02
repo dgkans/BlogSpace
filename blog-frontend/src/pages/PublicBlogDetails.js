@@ -19,21 +19,38 @@ function PublicBlogDetails() {
   const [error, setError] = useState('');
   const [reactionBusy, setReactionBusy] = useState(false);
   const [reactionHint, setReactionHint] = useState('');
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentsError, setCommentsError] = useState('');
+  const [commentText, setCommentText] = useState('');
+  const [commentBusy, setCommentBusy] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState('');
 
   useEffect(() => {
-    const loadBlog = async () => {
+    const loadBlogAndComments = async () => {
       setLoading(true);
+      setCommentsLoading(true);
       setError('');
+      setCommentsError('');
       try {
-        const data = await blogApi.getPublishedById(blogId, token);
-        setBlog(data.blog);
+        const blogData = await blogApi.getPublishedById(blogId, token);
+        setBlog(blogData.blog);
       } catch (err) {
         setError(err.message || 'Failed to load blog details');
       } finally {
         setLoading(false);
       }
+
+      try {
+        const commentsData = await blogApi.listComments(blogId);
+        setComments(commentsData.comments || []);
+      } catch (err) {
+        setCommentsError(err.message || 'Could not load comments right now.');
+      } finally {
+        setCommentsLoading(false);
+      }
     };
-    loadBlog();
+    loadBlogAndComments();
   }, [blogId, token]);
 
   const formattedDate = blog?.publishedAt
@@ -41,6 +58,8 @@ function PublicBlogDetails() {
     : 'Unknown publish date';
 
   const ownPost = user && blog?.author?.id && String(blog.author.id) === String(user.id);
+  const canManageComment = (comment) =>
+    !!user && (String(comment.author?.id) === String(user.id) || ownPost);
 
   const onLike = async () => {
     setReactionHint('');
@@ -71,6 +90,53 @@ function PublicBlogDetails() {
       setReactionBusy(false);
     }
   };
+
+  const onAddComment = async (event) => {
+    event.preventDefault();
+    const content = commentText.trim();
+    setCommentsError('');
+    if (!token) {
+      setCommentsError('Sign in to leave a comment.');
+      return;
+    }
+    if (!content) {
+      setCommentsError('Comment cannot be empty.');
+      return;
+    }
+    setCommentBusy(true);
+    try {
+      const data = await blogApi.addComment(token, blogId, content);
+      setComments((prev) => [data.comment, ...prev]);
+      setCommentText('');
+    } catch (err) {
+      setCommentsError(err.message || 'Could not post comment.');
+    } finally {
+      setCommentBusy(false);
+    }
+  };
+
+  const onDeleteComment = async (commentId) => {
+    if (!token) return;
+    setCommentsError('');
+    setDeletingCommentId(commentId);
+    try {
+      await blogApi.removeComment(token, blogId, commentId);
+      setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+    } catch (err) {
+      setCommentsError(err.message || 'Could not delete comment.');
+    } finally {
+      setDeletingCommentId('');
+    }
+  };
+
+  const formatCommentDate = (value) =>
+    new Date(value).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
 
   if (loading) {
     return (
@@ -172,6 +238,60 @@ function PublicBlogDetails() {
           className="blog-rendered-content"
           dangerouslySetInnerHTML={{ __html: blog?.contentHtml || '<p>No content provided.</p>' }}
         />
+
+        <section className="blog-comments-card">
+          <div className="blog-comments-head">
+            <h2>Comments</h2>
+            <span>{comments.length}</span>
+          </div>
+
+          <form className="blog-comment-form" onSubmit={onAddComment}>
+            <textarea
+              rows={3}
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder={token ? 'Share your thoughts…' : 'Sign in to leave a comment'}
+              disabled={!token || commentBusy}
+              maxLength={1200}
+            />
+            <div className="blog-comment-form-row">
+              <small>{commentText.trim().length}/1200</small>
+              <button type="submit" className="btn-primary" disabled={!token || commentBusy}>
+                {commentBusy ? 'Posting…' : 'Post comment'}
+              </button>
+            </div>
+          </form>
+
+          {commentsError && <p className="blog-comment-error">{commentsError}</p>}
+
+          {commentsLoading ? (
+            <p className="muted">Loading comments…</p>
+          ) : comments.length === 0 ? (
+            <p className="muted">No comments yet. Start the conversation.</p>
+          ) : (
+            <ul className="blog-comment-list">
+              {comments.map((comment) => (
+                <li key={comment.id} className="blog-comment-item">
+                  <div className="blog-comment-meta">
+                    <strong>{comment.author?.fullName || 'Unknown User'}</strong>
+                    <span>{formatCommentDate(comment.createdAt)}</span>
+                  </div>
+                  <p>{comment.content}</p>
+                  {canManageComment(comment) && (
+                    <button
+                      type="button"
+                      className="blog-comment-delete"
+                      disabled={deletingCommentId === comment.id}
+                      onClick={() => onDeleteComment(comment.id)}
+                    >
+                      {deletingCommentId === comment.id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </main>
   );

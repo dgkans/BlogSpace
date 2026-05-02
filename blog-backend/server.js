@@ -10,6 +10,7 @@ import User from './models/User.js';
 import Blog from './models/Blog.js';
 import BlogLike from './models/BlogLike.js';
 import BlogDislike from './models/BlogDislike.js';
+import BlogComment from './models/BlogComment.js';
 
 dotenv.config();
 
@@ -164,6 +165,18 @@ const publicBlogJson = (doc, likeCount, liked, dislikeCount, disliked) => ({
   liked,
   dislikeCount,
   disliked,
+});
+
+const formatComment = (comment) => ({
+  id: comment._id,
+  blogId: comment.blog,
+  content: comment.content,
+  createdAt: comment.created_at,
+  updatedAt: comment.updated_at,
+  author: {
+    id: comment.user?._id,
+    fullName: comment.user?.full_name || 'Unknown User',
+  },
 });
 
 // Routes
@@ -576,6 +589,100 @@ app.post('/api/blogs/public/:blogId/dislike', verifyToken, async (req, res) => {
   }
 });
 
+app.get('/api/blogs/public/:blogId/comments', async (req, res) => {
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    }).select('_id');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    const comments = await BlogComment.find({ blog: blog._id })
+      .populate('user', 'full_name')
+      .sort({ created_at: -1 })
+      .limit(200)
+      .lean();
+
+    return res.json({ comments: comments.map(formatComment) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching comments' });
+  }
+});
+
+app.post('/api/blogs/public/:blogId/comments', verifyToken, async (req, res) => {
+  const content = String(req.body?.content || '').trim();
+  if (!content) {
+    return res.status(400).json({ message: 'Comment cannot be empty' });
+  }
+  if (content.length > 1200) {
+    return res.status(400).json({ message: 'Comment is too long (max 1200 characters)' });
+  }
+
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    }).select('_id author');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    const saved = await BlogComment.create({
+      blog: blog._id,
+      user: req.user.userId,
+      content,
+    });
+
+    const comment = await BlogComment.findById(saved._id)
+      .populate('user', 'full_name')
+      .lean();
+
+    return res.status(201).json({ comment: formatComment(comment) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error creating comment' });
+  }
+});
+
+app.delete('/api/blogs/public/:blogId/comments/:commentId', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    }).select('_id author');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    const comment = await BlogComment.findOne({
+      _id: req.params.commentId,
+      blog: blog._id,
+    });
+
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    const isCommentAuthor = String(comment.user) === req.user.userId;
+    const isBlogAuthor = String(blog.author) === req.user.userId;
+    if (!isCommentAuthor && !isBlogAuthor) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    await comment.deleteOne();
+    return res.json({ message: 'Comment deleted successfully', commentId: req.params.commentId });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error deleting comment' });
+  }
+});
+
 app.post('/api/blogs', verifyToken, async (req, res) => {
   const payload = sanitizeBlogPayload(req.body);
 
@@ -725,6 +832,7 @@ app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
 
     await BlogLike.deleteMany({ blog: req.params.blogId });
     await BlogDislike.deleteMany({ blog: req.params.blogId });
+    await BlogComment.deleteMany({ blog: req.params.blogId });
     await Blog.findByIdAndDelete(req.params.blogId);
     res.json({ message: 'Blog deleted successfully' });
   } catch (err) {

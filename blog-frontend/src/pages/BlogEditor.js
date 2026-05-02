@@ -6,6 +6,15 @@ import { useAuth } from '../context/AuthContext';
 import { blogApi } from '../utils/blogApi';
 
 const emptyDelta = { ops: [] };
+const AUTOSAVE_WAIT_MS = 2000;
+
+const getAutosaveKey = ({ blogId, isEditMode, token }) => {
+  if (!token) return null;
+  const tokenPart = token.slice(0, 12);
+  return isEditMode
+    ? `blogEditorAutosave:edit:${blogId}:${tokenPart}`
+    : `blogEditorAutosave:new:${tokenPart}`;
+};
 
 const UploadIcon = () => (
   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -42,6 +51,7 @@ function BlogEditor() {
   const [error, setError] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [autosaveState, setAutosaveState] = useState('idle');
 
   const modules = useMemo(
     () => ({
@@ -77,6 +87,54 @@ function BlogEditor() {
 
     if (isEditMode && token) fetchBlog();
   }, [token, blogId, isEditMode]);
+
+  const autosaveKey = useMemo(
+    () => getAutosaveKey({ blogId, isEditMode, token }),
+    [blogId, isEditMode, token]
+  );
+
+  useEffect(() => {
+    if (!autosaveKey || loading) return;
+    const raw = localStorage.getItem(autosaveKey);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      const hasSavedContent = parsed.title || parsed.summary || parsed.thumbnailUrl || (parsed.tags || []).length || parsed.contentHtml;
+      if (!hasSavedContent) return;
+
+      setTitle(parsed.title || '');
+      setSummary(parsed.summary || '');
+      setThumbnailUrl(parsed.thumbnailUrl || '');
+      setTags(Array.isArray(parsed.tags) ? parsed.tags : []);
+      setContentHtml(parsed.contentHtml || '');
+      setContentDelta(parsed.contentDelta || emptyDelta);
+      setAutosaveState('restored');
+    } catch {
+      localStorage.removeItem(autosaveKey);
+    }
+  }, [autosaveKey, loading]);
+
+  useEffect(() => {
+    if (!autosaveKey || loading) return;
+
+    setAutosaveState('typing');
+    const timer = setTimeout(() => {
+      const payload = {
+        title,
+        summary,
+        thumbnailUrl,
+        tags,
+        contentHtml,
+        contentDelta,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(autosaveKey, JSON.stringify(payload));
+      setAutosaveState('saved');
+    }, AUTOSAVE_WAIT_MS);
+
+    return () => clearTimeout(timer);
+  }, [autosaveKey, loading, title, summary, thumbnailUrl, tags, contentHtml, contentDelta]);
 
   const handleImageFile = useCallback(async (file) => {
     if (!file) return;
@@ -144,9 +202,11 @@ function BlogEditor() {
     try {
       if (isEditMode) {
         await blogApi.update(token, blogId, buildPayload(status));
+        if (autosaveKey) localStorage.removeItem(autosaveKey);
         navigate(`/blogs/${blogId}`);
       } else {
         const data = await blogApi.create(token, buildPayload(status));
+        if (autosaveKey) localStorage.removeItem(autosaveKey);
         navigate(`/blogs/${data.blog.id}`);
       }
     } catch (err) {
@@ -182,6 +242,12 @@ function BlogEditor() {
           </div>
         </div>
         <div className="editor-page-header-right">
+          <span className="editor-autosave-pill">
+            {autosaveState === 'typing' && 'Autosaving…'}
+            {autosaveState === 'saved' && 'Draft saved locally'}
+            {autosaveState === 'restored' && 'Recovered local draft'}
+            {autosaveState === 'idle' && 'Autosave ready'}
+          </span>
           <button
             className={`editor-toggle-btn${showPreview ? ' active' : ''}`}
             onClick={() => setShowPreview((p) => !p)}

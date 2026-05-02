@@ -103,6 +103,28 @@ export const blogApi = {
     return parseJson(response);
   },
 
+  listComments: async (blogId) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/comments`);
+    return parseJson(response);
+  },
+
+  addComment: async (token, blogId, content) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/comments`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ content }),
+    });
+    return parseJson(response);
+  },
+
+  removeComment: async (token, blogId, commentId) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: authHeaders(token),
+    });
+    return parseJson(response);
+  },
+
   uploadImage: async (token, file) => {
     const form = new FormData();
     form.append('image', file);
