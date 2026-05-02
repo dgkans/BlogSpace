@@ -3,12 +3,21 @@ import { Link } from 'react-router-dom';
 import { blogApi } from '../utils/blogApi';
 import { useAuth } from '../context/AuthContext';
 
+const stripHtml = (html = '') => html.replace(/<[^>]*>/g, ' ');
+
+const estimateReadTime = (blog) => {
+  const text = stripHtml(blog.contentHtml || '') + ' ' + (blog.title || '') + ' ' + (blog.summary || '');
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
+};
+
 function Home() {
   const { token, user } = useAuth();
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [period, setPeriod] = useState('all');
   const [sort, setSort] = useState('newest');
+  const [activeTag, setActiveTag] = useState('');
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,20 +25,16 @@ function Home() {
   const [reactionHint, setReactionHint] = useState('');
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setSearchQuery(searchInput.trim());
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
+    const id = setTimeout(() => setSearchQuery(searchInput.trim()), 300);
+    return () => clearTimeout(id);
   }, [searchInput]);
 
   useEffect(() => {
     const fetchPublishedBlogs = async () => {
       setLoading(true);
       setError('');
-
       try {
-        const data = await blogApi.listPublished({ q: searchQuery, period, sort, token });
+        const data = await blogApi.listPublished({ q: searchQuery, period, sort, tag: activeTag, token });
         setBlogs(data.blogs || []);
       } catch (fetchError) {
         setError(fetchError.message || 'Could not load published blogs');
@@ -37,14 +42,14 @@ function Home() {
         setLoading(false);
       }
     };
-
     fetchPublishedBlogs();
-  }, [searchQuery, period, sort, token]);
+  }, [searchQuery, period, sort, activeTag, token]);
 
   const resultLabel = useMemo(() => {
-    if (loading) return 'Loading published blogs...';
-    return `${blogs.length} published blog${blogs.length === 1 ? '' : 's'}`;
-  }, [blogs.length, loading]);
+    if (loading) return 'Loading…';
+    const base = `${blogs.length} published blog${blogs.length === 1 ? '' : 's'}`;
+    return activeTag ? `${base} tagged "${activeTag}"` : base;
+  }, [blogs.length, loading, activeTag]);
 
   const formatDate = (value) => {
     if (!value) return 'Unknown date';
@@ -53,31 +58,19 @@ function Home() {
 
   const isOwnPost = (blog) => user && blog.author?.id && String(blog.author.id) === String(user.id);
 
+  const handleTagClick = (tag) => {
+    setActiveTag((prev) => (prev === tag ? '' : tag));
+  };
+
   const onLikeClick = async (blog, ev) => {
     ev.preventDefault();
     setReactionHint('');
-    if (!token) {
-      setReactionHint('Sign in to react to posts.');
-      return;
-    }
+    if (!token) { setReactionHint('Sign in to react to posts.'); return; }
     if (isOwnPost(blog)) return;
-
     setBusyReactionId(blog.id);
     try {
       const data = await blogApi.togglePublishedLike(token, blog.id);
-      setBlogs((prev) =>
-        prev.map((b) =>
-          b.id === blog.id
-            ? {
-                ...b,
-                likeCount: data.likeCount,
-                liked: data.liked,
-                dislikeCount: data.dislikeCount,
-                disliked: data.disliked,
-              }
-            : b
-        )
-      );
+      setBlogs((prev) => prev.map((b) => b.id === blog.id ? { ...b, likeCount: data.likeCount, liked: data.liked, dislikeCount: data.dislikeCount, disliked: data.disliked } : b));
     } catch (err) {
       setReactionHint(err.message || 'Like did not go through.');
     } finally {
@@ -88,38 +81,17 @@ function Home() {
   const onDislikeClick = async (blog, ev) => {
     ev.preventDefault();
     setReactionHint('');
-    if (!token) {
-      setReactionHint('Sign in to react to posts.');
-      return;
-    }
+    if (!token) { setReactionHint('Sign in to react to posts.'); return; }
     if (isOwnPost(blog)) return;
-
     setBusyReactionId(blog.id);
     try {
       const data = await blogApi.togglePublishedDislike(token, blog.id);
-      setBlogs((prev) =>
-        prev.map((b) =>
-          b.id === blog.id
-            ? {
-                ...b,
-                likeCount: data.likeCount,
-                liked: data.liked,
-                dislikeCount: data.dislikeCount,
-                disliked: data.disliked,
-              }
-            : b
-        )
-      );
+      setBlogs((prev) => prev.map((b) => b.id === blog.id ? { ...b, likeCount: data.likeCount, liked: data.liked, dislikeCount: data.dislikeCount, disliked: data.disliked } : b));
     } catch (err) {
       setReactionHint(err.message || 'Dislike did not go through.');
     } finally {
       setBusyReactionId(null);
     }
-  };
-
-  const estimateReadTime = (blog) => {
-    const words = ((blog.summary || '') + ' ' + (blog.title || '')).split(/\s+/).length;
-    return Math.max(1, Math.ceil(words / 200));
   };
 
   return (
@@ -144,7 +116,7 @@ function Home() {
         </div>
       </section>
 
-      {/* Platform stats */}
+      {/* Stats bar */}
       <section className="stats-bar">
         <div className="stats-bar-inner">
           <div className="stat-item">
@@ -158,8 +130,8 @@ function Home() {
           </div>
           <div className="stat-divider" />
           <div className="stat-item">
-            <span className="stat-number">Rich</span>
-            <span className="stat-label">Text Editor</span>
+            <span className="stat-number">Tags</span>
+            <span className="stat-label">Browse by Topic</span>
           </div>
           <div className="stat-divider" />
           <div className="stat-item">
@@ -185,20 +157,29 @@ function Home() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />
-
               <select value={period} onChange={(e) => setPeriod(e.target.value)}>
                 <option value="all">All time</option>
                 <option value="7d">Last 7 days</option>
                 <option value="30d">Last 30 days</option>
                 <option value="1y">Last year</option>
               </select>
-
               <select value={sort} onChange={(e) => setSort(e.target.value)}>
                 <option value="newest">Newest first</option>
                 <option value="oldest">Oldest first</option>
               </select>
             </div>
           </div>
+
+          {/* Active tag filter pill */}
+          {activeTag && (
+            <div className="active-tag-filter">
+              <span>Filtered by tag:</span>
+              <span className="tag-chip active-tag-chip">
+                {activeTag}
+                <button type="button" className="tag-remove" onClick={() => setActiveTag('')} aria-label="Clear tag filter">×</button>
+              </span>
+            </div>
+          )}
 
           {error && <p className="home-published-error">{error}</p>}
           {reactionHint && <p className="home-published-error">{reactionHint}</p>}
@@ -215,7 +196,12 @@ function Home() {
           <div className="home-published-grid">
             {blogs.map((blog) => (
               <article key={blog.id} className="home-published-card">
-                <div className="card-top-bar" />
+                {blog.thumbnailUrl && (
+                  <div className="card-thumbnail">
+                    <img src={blog.thumbnailUrl} alt={blog.title} />
+                  </div>
+                )}
+                {!blog.thumbnailUrl && <div className="card-top-bar" />}
                 <div className="card-body">
                   <div className="home-published-meta">
                     <span className="meta-author">
@@ -230,6 +216,20 @@ function Home() {
                   </div>
                   <h3 className="card-title">{blog.title}</h3>
                   <p className="card-summary">{blog.summary || 'No summary provided.'}</p>
+                  {blog.tags?.length > 0 && (
+                    <div className="card-tags">
+                      {blog.tags.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          className={`tag-chip tag-chip-btn${activeTag === tag ? ' active' : ''}`}
+                          onClick={() => handleTagClick(tag)}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <div className="home-published-card-footer">
                     <div className="home-like-block">
                       {isOwnPost(blog) ? (
@@ -281,17 +281,17 @@ function Home() {
             <div className="feature-card">
               <div className="feature-icon-wrap feature-icon-blue">✍️</div>
               <h3>Rich Text Editor</h3>
-              <p>Write with a powerful editor that supports headings, bold, italic, lists, links, and more — no Markdown required.</p>
+              <p>Write with a powerful editor supporting headings, bold, italic, lists, links, and more — no Markdown required.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon-wrap feature-icon-green">🌐</div>
               <h3>Instant Publishing</h3>
-              <p>Go from draft to live post in one click. Your story becomes publicly accessible the moment you publish it.</p>
+              <p>Go from draft to live post in one click. Your story is publicly accessible the moment you publish.</p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon-wrap feature-icon-amber">🔍</div>
-              <h3>Search & Filter</h3>
-              <p>Readers can search by keyword, filter by publish date, and sort posts exactly how they want.</p>
+              <div className="feature-icon-wrap feature-icon-amber">🏷️</div>
+              <h3>Tags & Discovery</h3>
+              <p>Tag your posts and let readers filter by topic. Better discovery for both writers and readers.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon-wrap feature-icon-red">❤️</div>
@@ -305,8 +305,8 @@ function Home() {
             </div>
             <div className="feature-card">
               <div className="feature-icon-wrap feature-icon-teal">📊</div>
-              <h3>Draft Management</h3>
-              <p>Save drafts privately and publish when you're ready. Full CRUD control over all your writing.</p>
+              <h3>View Analytics</h3>
+              <p>See how many people have read your posts. Track engagement with view counts and reaction stats.</p>
             </div>
           </div>
         </section>

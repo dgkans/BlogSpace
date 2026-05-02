@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
 import connectDB from './config/db.js';
 import User from './models/User.js';
 import Blog from './models/Blog.js';
@@ -27,6 +29,21 @@ app.use(cors({
 app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|gif|webp)$/.test(file.mimetype)) return cb(null, true);
+    cb(new Error('Only JPEG, PNG, GIF, and WebP images are allowed'));
+  },
+});
+
 const BLOG_STATUSES = ['draft', 'published'];
 
 const sanitizeBlogPayload = (body = {}) => {
@@ -35,14 +52,12 @@ const sanitizeBlogPayload = (body = {}) => {
   const contentHtml = (body.contentHtml || '').trim();
   const contentDelta = body.contentDelta;
   const status = BLOG_STATUSES.includes(body.status) ? body.status : 'draft';
+  const thumbnailUrl = (body.thumbnailUrl || '').trim();
+  const tags = Array.isArray(body.tags)
+    ? body.tags.map((t) => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 5)
+    : [];
 
-  return {
-    title,
-    summary,
-    contentHtml,
-    contentDelta,
-    status,
-  };
+  return { title, summary, contentHtml, contentDelta, status, thumbnailUrl, tags };
 };
 
 const formatBlog = (blog) => ({
@@ -52,6 +67,8 @@ const formatBlog = (blog) => ({
   summary: blog.summary,
   contentDelta: blog.content_delta,
   contentHtml: blog.content_html,
+  thumbnailUrl: blog.thumbnail_url,
+  tags: blog.tags ?? [],
   status: blog.status,
   publishedAt: blog.published_at,
   createdAt: blog.created_at,
@@ -63,6 +80,9 @@ const formatPublicBlog = (blog) => ({
   title: blog.title,
   summary: blog.summary,
   contentHtml: blog.content_html,
+  thumbnailUrl: blog.thumbnail_url,
+  tags: blog.tags ?? [],
+  viewCount: blog.view_count ?? 0,
   status: blog.status,
   publishedAt: blog.published_at,
   createdAt: blog.created_at,
@@ -368,8 +388,25 @@ app.delete('/api/users/:userId', verifyToken, async (req, res) => {
   }
 });
 
+app.post('/api/upload', verifyToken, imageUpload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'No image file provided' });
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'blog-thumbnails', resource_type: 'image' },
+        (err, data) => (err ? reject(err) : resolve(data))
+      );
+      stream.end(req.file.buffer);
+    });
+    return res.status(201).json({ url: result.secure_url });
+  } catch (err) {
+    console.error('Cloudinary upload error:', err);
+    return res.status(502).json({ message: 'Image upload failed. Check Cloudinary credentials.' });
+  }
+});
+
 app.get('/api/blogs/public', optionalAuth, async (req, res) => {
-  const { q = '', sort = 'newest', period = 'all' } = req.query;
+  const { q = '', sort = 'newest', period = 'all', tag = '' } = req.query;
   const filter = { status: 'published' };
 
   const trimmedQuery = String(q).trim();
@@ -380,6 +417,11 @@ app.get('/api/blogs/public', optionalAuth, async (req, res) => {
       { summary: queryRegex },
       { content_html: queryRegex },
     ];
+  }
+
+  const trimmedTag = String(tag).trim().toLowerCase();
+  if (trimmedTag) {
+    filter.tags = trimmedTag;
   }
 
   const now = new Date();
@@ -435,6 +477,8 @@ app.get('/api/blogs/public/:blogId', optionalAuth, async (req, res) => {
     if (!blog) {
       return res.status(404).json({ message: 'Published blog not found' });
     }
+
+    await Blog.findByIdAndUpdate(blog._id, { $inc: { view_count: 1 } });
 
     const likeCount = await BlogLike.countDocuments({ blog: blog._id });
     const dislikeCount = await BlogDislike.countDocuments({ blog: blog._id });
@@ -550,6 +594,8 @@ app.post('/api/blogs', verifyToken, async (req, res) => {
       summary: payload.summary,
       content_delta: payload.contentDelta,
       content_html: payload.contentHtml,
+      thumbnail_url: payload.thumbnailUrl,
+      tags: payload.tags,
       status: payload.status,
       published_at: payload.status === 'published' ? new Date() : null,
     });
@@ -623,6 +669,8 @@ app.put('/api/blogs/:blogId', verifyToken, async (req, res) => {
     blog.summary = payload.summary;
     blog.content_delta = payload.contentDelta;
     blog.content_html = payload.contentHtml;
+    blog.thumbnail_url = payload.thumbnailUrl;
+    blog.tags = payload.tags;
 
     if (payload.status === 'published' && blog.status !== 'published') {
       blog.published_at = new Date();
@@ -685,13 +733,19 @@ app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
   }
 });
 
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
+  if (err instanceof multer.MulterError) {
+    const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Image must be under 5 MB' : err.message;
+    return res.status(400).json({ message: msg });
+  }
+  if (err?.message?.startsWith('Only')) {
+    return res.status(400).json({ message: err.message });
+  }
   if (err?.type === 'entity.too.large') {
     return res.status(413).json({
-      message: `Payload too large. Reduce image size or use image hosting. Max body size: ${REQUEST_BODY_LIMIT}`,
+      message: `Payload too large. Max body size: ${REQUEST_BODY_LIMIT}`,
     });
   }
-
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
