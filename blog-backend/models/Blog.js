@@ -30,6 +30,19 @@ const blogSchema = new mongoose.Schema(
       required: true,
       default: '',
     },
+    thumbnail_url: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    tags: {
+      type: [String],
+      default: [],
+    },
+    view_count: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       enum: ['draft', 'published'],

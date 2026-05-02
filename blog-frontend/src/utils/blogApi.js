@@ -63,12 +63,8 @@ export const blogApi = {
     return parseJson(response);
   },
 
-  listPublished: async ({ q = '', period = 'all', sort = 'newest', token } = {}) => {
-    const query = new URLSearchParams({
-      q,
-      period,
-      sort,
-    });
+  listPublished: async ({ q = '', period = 'all', sort = 'newest', tag = '', token } = {}) => {
+    const query = new URLSearchParams({ q, period, sort, tag });
 
     const headers = {};
     if (token) {
@@ -103,6 +99,39 @@ export const blogApi = {
     const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/dislike`, {
       method: 'POST',
       headers: authHeaders(token),
+    });
+    return parseJson(response);
+  },
+
+  listComments: async (blogId) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/comments`);
+    return parseJson(response);
+  },
+
+  addComment: async (token, blogId, content) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/comments`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ content }),
+    });
+    return parseJson(response);
+  },
+
+  removeComment: async (token, blogId, commentId) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: authHeaders(token),
+    });
+    return parseJson(response);
+  },
+
+  uploadImage: async (token, file) => {
+    const form = new FormData();
+    form.append('image', file);
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
     });
     return parseJson(response);
   },

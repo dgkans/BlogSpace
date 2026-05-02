@@ -11,10 +11,7 @@ function BlogList() {
 
   useEffect(() => {
     const fetchBlogs = async () => {
-      if (!token) {
-        return;
-      }
-
+      if (!token) return;
       try {
         const data = await blogApi.list(token);
         setBlogs(data.blogs || []);
@@ -25,16 +22,11 @@ function BlogList() {
         setLoading(false);
       }
     };
-
     fetchBlogs();
   }, [token]);
 
   const handleDelete = async (blogId) => {
-    const shouldDelete = window.confirm('Delete this blog post?');
-    if (!shouldDelete) {
-      return;
-    }
-
+    if (!window.confirm('Delete this blog post? This cannot be undone.')) return;
     try {
       await blogApi.remove(token, blogId);
       setBlogs((prev) => prev.filter((blog) => blog.id !== blogId));
@@ -58,8 +50,18 @@ function BlogList() {
     }
   };
 
+  const drafts = blogs.filter((b) => b.status === 'draft');
+  const published = blogs.filter((b) => b.status === 'published');
+
   if (loading) {
-    return <main className="page-content"><div className="loading">Loading blogs...</div></main>;
+    return (
+      <main className="page-content blog-page">
+        <div className="home-published-empty">
+          <div className="loading-spinner" />
+          <p>Loading your posts…</p>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -67,42 +69,83 @@ function BlogList() {
       <section className="blog-list-header">
         <div>
           <h1>My Blog Posts</h1>
-          <p>Write, save drafts, preview, and publish when ready.</p>
+          <p>
+            {blogs.length === 0
+              ? 'No posts yet — create your first one.'
+              : `${published.length} published · ${drafts.length} draft${drafts.length !== 1 ? 's' : ''}`}
+          </p>
         </div>
-        <Link to="/blogs/new" className="btn-primary">New Post</Link>
+        <Link to="/blogs/new" className="btn-primary">+ New Post</Link>
       </section>
 
       {error && <div className="error-message">{error}</div>}
 
       {blogs.length === 0 ? (
         <section className="blog-empty-state">
+          <div className="empty-icon-svg"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></div>
           <h2>No blog posts yet</h2>
-          <p>Create your first post and save it as draft or publish directly.</p>
+          <p>Create your first post and save it as a draft or publish directly.</p>
           <Link to="/blogs/new" className="btn-primary">Create First Post</Link>
         </section>
       ) : (
-        <section className="blog-list-grid">
+        <div className="my-posts-list">
           {blogs.map((blog) => (
-            <article className="blog-list-card" key={blog.id}>
-              <div className="blog-card-meta">
-                <span className={`status-badge status-${blog.status}`}>{blog.status}</span>
-                <span>
-                  Updated {new Date(blog.updatedAt).toLocaleDateString()}
-                </span>
-              </div>
-              <h2>{blog.title}</h2>
-              <p>{blog.summary || 'No summary provided.'}</p>
-              <div className="blog-card-actions">
-                <Link to={`/blogs/${blog.id}`} className="btn-link">View</Link>
-                <Link to={`/blogs/${blog.id}/edit`} className="btn-link">Edit</Link>
-                {blog.status === 'draft' && (
-                  <button className="btn-link" onClick={() => handlePublish(blog.id)}>Publish</button>
+            <article className="my-post-card" key={blog.id}>
+              <div className="my-post-card-inner">
+                {/* Thumbnail */}
+                {blog.thumbnailUrl && (
+                  <div className="my-post-thumb">
+                    <img src={blog.thumbnailUrl} alt={blog.title} />
+                  </div>
                 )}
-                <button className="btn-link danger" onClick={() => handleDelete(blog.id)}>Delete</button>
+
+                {/* Body */}
+                <div className="my-post-body">
+                  <div className="my-post-head">
+                    <div>
+                      <h2 className="my-post-title">{blog.title || 'Untitled'}</h2>
+                      <p className="my-post-meta">
+                        Updated {new Date(blog.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {blog.status === 'published' && blog.publishedAt && (
+                          <> · Published {new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>
+                        )}
+                      </p>
+                    </div>
+                    <span className={`status-badge status-${blog.status}`}>{blog.status}</span>
+                  </div>
+
+                  {blog.summary && (
+                    <p className="my-post-summary">{blog.summary}</p>
+                  )}
+
+                  {blog.tags?.length > 0 && (
+                    <div className="blog-list-tags">
+                      {blog.tags.map((tag) => <span key={tag} className="tag-chip">{tag}</span>)}
+                    </div>
+                  )}
+
+                  <div className="my-post-actions">
+                    <Link to={`/blogs/${blog.id}`} className="btn-link">View</Link>
+                    <Link to={`/blogs/${blog.id}/edit`} className="btn-link">Edit</Link>
+                    {blog.status === 'draft' && (
+                      <button className="btn-link publish-btn" onClick={() => handlePublish(blog.id)}>
+                        Publish
+                      </button>
+                    )}
+                    {blog.status === 'published' && (
+                      <Link to={`/blogs/public/${blog.id}`} className="btn-link" target="_blank" rel="noopener noreferrer">
+                        Public View ↗
+                      </Link>
+                    )}
+                    <button className="btn-link danger" onClick={() => handleDelete(blog.id)}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
             </article>
           ))}
-        </section>
+        </div>
       )}
     </main>
   );

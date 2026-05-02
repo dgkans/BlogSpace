@@ -325,6 +325,95 @@
   border-color: #93c5fd;
 }
 
+/* ── Card thumbnail ── */
+.card-thumbnail {
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.card-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.home-published-card:hover .card-thumbnail img {
+  transform: scale(1.03);
+}
+
+/* ── Tag chips (shared across home + list + detail) ── */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 100px;
+  padding: 0.2rem 0.6rem;
+}
+
+.tag-chip-btn {
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  font-family: inherit;
+}
+
+.tag-chip-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.tag-chip-btn.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Active tag filter indicator */
+.active-tag-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.active-tag-chip {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.active-tag-chip .tag-remove {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  margin-left: 0.15rem;
+}
+
+.active-tag-chip .tag-remove:hover {
+  color: #fff;
+}
+
 /* ── Empty / error states ── */
 .home-published-empty {
   border: 1px dashed #d1d5db;
