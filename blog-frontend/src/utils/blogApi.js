@@ -117,6 +117,15 @@ export const blogApi = {
     return parseJson(response);
   },
 
+  updateComment: async (token, blogId, commentId, content) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/comments/${commentId}`, {
+      method: 'PUT',
+      headers: authHeaders(token),
+      body: JSON.stringify({ content }),
+    });
+    return parseJson(response);
+  },
+
   removeComment: async (token, blogId, commentId) => {
     const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/comments/${commentId}`, {
       method: 'DELETE',

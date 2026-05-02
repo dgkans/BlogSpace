@@ -1099,23 +1099,72 @@
   margin-bottom: 0.35rem;
 }
 
+.blog-comment-edited {
+  color: #4b5563;
+  font-style: normal;
+}
+
 .blog-comment-item p {
   margin: 0;
   white-space: pre-wrap;
 }
 
-.blog-comment-delete {
-  margin-top: 0.45rem;
+.blog-comment-tools {
+  margin-top: 0.55rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.blog-comment-action {
   border: none;
   background: transparent;
-  color: #b91c1c;
+  color: #1f2937;
   font-weight: 600;
   cursor: pointer;
   padding: 0;
 }
 
-.blog-comment-delete:disabled {
+.blog-comment-action.save {
+  color: #1d4ed8;
+}
+
+.blog-comment-action.delete {
+  color: #b91c1c;
+}
+
+.blog-comment-action:disabled {
   opacity: 0.65;
   cursor: wait;
+}
+
+.blog-comment-edit-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.blog-comment-edit-wrap textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  resize: vertical;
+}
+
+.blog-comment-edit-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.blog-comment-edit-actions small {
+  color: #6b7280;
+}
+
+.blog-comment-edit-actions > div {
+  display: flex;
+  gap: 0.75rem;
 }
 

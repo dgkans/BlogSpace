@@ -25,6 +25,9 @@ function PublicBlogDetails() {
   const [commentText, setCommentText] = useState('');
   const [commentBusy, setCommentBusy] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState('');
+  const [editingText, setEditingText] = useState('');
+  const [editingBusy, setEditingBusy] = useState(false);
 
   useEffect(() => {
     const loadBlogAndComments = async () => {
@@ -129,6 +132,40 @@ function PublicBlogDetails() {
     }
   };
 
+  const onStartEditComment = (comment) => {
+    setCommentsError('');
+    setEditingCommentId(comment.id);
+    setEditingText(comment.content || '');
+  };
+
+  const onCancelEditComment = () => {
+    setEditingCommentId('');
+    setEditingText('');
+    setEditingBusy(false);
+  };
+
+  const onSaveEditComment = async (commentId) => {
+    if (!token) return;
+    const content = editingText.trim();
+    if (!content) {
+      setCommentsError('Comment cannot be empty.');
+      return;
+    }
+
+    setCommentsError('');
+    setEditingBusy(true);
+    try {
+      const data = await blogApi.updateComment(token, blogId, commentId, content);
+      setComments((prev) =>
+        prev.map((comment) => (comment.id === commentId ? data.comment : comment))
+      );
+      onCancelEditComment();
+    } catch (err) {
+      setCommentsError(err.message || 'Could not update comment.');
+      setEditingBusy(false);
+    }
+  };
+
   const formatCommentDate = (value) =>
     new Date(value).toLocaleString('en-US', {
       year: 'numeric',
@@ -137,6 +174,11 @@ function PublicBlogDetails() {
       hour: 'numeric',
       minute: '2-digit',
     });
+
+  const isEditedComment = (comment) => {
+    if (!comment?.createdAt || !comment?.updatedAt) return false;
+    return new Date(comment.updatedAt).getTime() > new Date(comment.createdAt).getTime();
+  };
 
   if (loading) {
     return (
@@ -274,18 +316,64 @@ function PublicBlogDetails() {
                 <li key={comment.id} className="blog-comment-item">
                   <div className="blog-comment-meta">
                     <strong>{comment.author?.fullName || 'Unknown User'}</strong>
-                    <span>{formatCommentDate(comment.createdAt)}</span>
+                    <span>
+                      {formatCommentDate(comment.createdAt)}
+                      {isEditedComment(comment) && <em className="blog-comment-edited"> (edited)</em>}
+                    </span>
                   </div>
-                  <p>{comment.content}</p>
-                  {canManageComment(comment) && (
-                    <button
-                      type="button"
-                      className="blog-comment-delete"
-                      disabled={deletingCommentId === comment.id}
-                      onClick={() => onDeleteComment(comment.id)}
-                    >
-                      {deletingCommentId === comment.id ? 'Deleting…' : 'Delete'}
-                    </button>
+                  {editingCommentId === comment.id ? (
+                    <div className="blog-comment-edit-wrap">
+                      <textarea
+                        rows={3}
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        maxLength={1200}
+                        disabled={editingBusy}
+                      />
+                      <div className="blog-comment-edit-actions">
+                        <small>{editingText.trim().length}/1200</small>
+                        <div>
+                          <button
+                            type="button"
+                            className="blog-comment-action"
+                            onClick={onCancelEditComment}
+                            disabled={editingBusy}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            className="blog-comment-action save"
+                            onClick={() => onSaveEditComment(comment.id)}
+                            disabled={editingBusy}
+                          >
+                            {editingBusy ? 'Saving…' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p>{comment.content}</p>
+                  )}
+
+                  {canManageComment(comment) && editingCommentId !== comment.id && (
+                    <div className="blog-comment-tools">
+                      <button
+                        type="button"
+                        className="blog-comment-action"
+                        onClick={() => onStartEditComment(comment)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="blog-comment-action delete"
+                        disabled={deletingCommentId === comment.id}
+                        onClick={() => onDeleteComment(comment.id)}
+                      >
+                        {deletingCommentId === comment.id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
                   )}
                 </li>
               ))}
