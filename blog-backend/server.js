@@ -649,6 +649,54 @@ app.post('/api/blogs/public/:blogId/comments', verifyToken, async (req, res) => 
   }
 });
 
+app.put('/api/blogs/public/:blogId/comments/:commentId', verifyToken, async (req, res) => {
+  const content = String(req.body?.content || '').trim();
+  if (!content) {
+    return res.status(400).json({ message: 'Comment cannot be empty' });
+  }
+  if (content.length > 1200) {
+    return res.status(400).json({ message: 'Comment is too long (max 1200 characters)' });
+  }
+
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    }).select('_id author');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    const comment = await BlogComment.findOne({
+      _id: req.params.commentId,
+      blog: blog._id,
+    });
+
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    const isCommentAuthor = String(comment.user) === req.user.userId;
+    const isBlogAuthor = String(blog.author) === req.user.userId;
+    if (!isCommentAuthor && !isBlogAuthor) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    comment.content = content;
+    await comment.save();
+
+    const populated = await BlogComment.findById(comment._id)
+      .populate('user', 'full_name')
+      .lean();
+
+    return res.json({ comment: formatComment(populated) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error updating comment' });
+  }
+});
+
 app.delete('/api/blogs/public/:blogId/comments/:commentId', verifyToken, async (req, res) => {
   try {
     const blog = await Blog.findOne({
