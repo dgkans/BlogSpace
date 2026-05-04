@@ -11,6 +11,7 @@ import Blog from './models/Blog.js';
 import BlogLike from './models/BlogLike.js';
 import BlogDislike from './models/BlogDislike.js';
 import BlogComment from './models/BlogComment.js';
+import BlogBookmark from './models/BlogBookmark.js';
 
 dotenv.config();
 
@@ -159,12 +160,21 @@ const dislikedBlogIdsForUser = async (blogIds, userId) => {
   return new Set(rows.map((r) => String(r.blog)));
 };
 
-const publicBlogJson = (doc, likeCount, liked, dislikeCount, disliked) => ({
+const bookmarkedBlogIdsForUser = async (blogIds, userId) => {
+  if (!blogIds.length || !userId) return new Set();
+  const rows = await BlogBookmark.find({ blog: { $in: blogIds }, user: userId })
+    .select('blog')
+    .lean();
+  return new Set(rows.map((r) => String(r.blog)));
+};
+
+const publicBlogJson = (doc, likeCount, liked, dislikeCount, disliked, bookmarked = false) => ({
   ...formatPublicBlog(doc),
   likeCount,
   liked,
   dislikeCount,
   disliked,
+  bookmarked,
 });
 
 const formatComment = (comment) => ({
@@ -460,6 +470,7 @@ app.get('/api/blogs/public', optionalAuth, async (req, res) => {
     const dislikeCountMap = await dislikeCountsForBlogs(ids);
     const likedSet = await likedBlogIdsForUser(ids, viewerId);
     const dislikedSet = await dislikedBlogIdsForUser(ids, viewerId);
+    const bookmarkedSet = await bookmarkedBlogIdsForUser(ids, viewerId);
 
     const payload = blogs.map((b) =>
       publicBlogJson(
@@ -467,7 +478,8 @@ app.get('/api/blogs/public', optionalAuth, async (req, res) => {
         countMap.get(String(b._id)) || 0,
         viewerId ? likedSet.has(String(b._id)) : false,
         dislikeCountMap.get(String(b._id)) || 0,
-        viewerId ? dislikedSet.has(String(b._id)) : false
+        viewerId ? dislikedSet.has(String(b._id)) : false,
+        viewerId ? bookmarkedSet.has(String(b._id)) : false
       )
     );
 
@@ -497,12 +509,14 @@ app.get('/api/blogs/public/:blogId', optionalAuth, async (req, res) => {
     const dislikeCount = await BlogDislike.countDocuments({ blog: blog._id });
     let liked = false;
     let disliked = false;
+    let bookmarked = false;
     if (viewerId) {
       liked = !!(await BlogLike.findOne({ blog: blog._id, user: viewerId }));
       disliked = !!(await BlogDislike.findOne({ blog: blog._id, user: viewerId }));
+      bookmarked = !!(await BlogBookmark.findOne({ blog: blog._id, user: viewerId }));
     }
 
-    res.json({ blog: publicBlogJson(blog, likeCount, liked, dislikeCount, disliked) });
+    res.json({ blog: publicBlogJson(blog, likeCount, liked, dislikeCount, disliked, bookmarked) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching published blog details' });
@@ -586,6 +600,38 @@ app.post('/api/blogs/public/:blogId/dislike', verifyToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error updating dislike' });
+  }
+});
+
+app.post('/api/blogs/public/:blogId/bookmark', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    });
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    const existing = await BlogBookmark.findOne({
+      blog: blog._id,
+      user: req.user.userId,
+    });
+
+    let bookmarked;
+    if (existing) {
+      await existing.deleteOne();
+      bookmarked = false;
+    } else {
+      await BlogBookmark.create({ blog: blog._id, user: req.user.userId });
+      bookmarked = true;
+    }
+
+    res.json({ bookmarked });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error updating bookmark' });
   }
 });
 
@@ -780,6 +826,42 @@ app.get('/api/blogs', verifyToken, async (req, res) => {
   }
 });
 
+app.get('/api/blogs/me/bookmarks', verifyToken, async (req, res) => {
+  try {
+    const rows = await BlogBookmark.find({ user: req.user.userId })
+      .sort({ created_at: -1 })
+      .populate({
+        path: 'blog',
+        populate: { path: 'author', select: 'full_name' },
+      })
+      .lean();
+
+    const blogs = rows.map((r) => r.blog).filter((b) => b && b.status === 'published');
+    const ids = blogs.map((b) => b._id);
+    const viewerId = req.user.userId;
+    const countMap = await likeCountsForBlogs(ids);
+    const dislikeCountMap = await dislikeCountsForBlogs(ids);
+    const likedSet = await likedBlogIdsForUser(ids, viewerId);
+    const dislikedSet = await dislikedBlogIdsForUser(ids, viewerId);
+
+    const payload = blogs.map((b) =>
+      publicBlogJson(
+        b,
+        countMap.get(String(b._id)) || 0,
+        likedSet.has(String(b._id)),
+        dislikeCountMap.get(String(b._id)) || 0,
+        dislikedSet.has(String(b._id)),
+        true
+      )
+    );
+
+    res.json({ blogs: payload });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching bookmarks' });
+  }
+});
+
 app.get('/api/blogs/:blogId', verifyToken, async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.blogId);
@@ -880,6 +962,7 @@ app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
 
     await BlogLike.deleteMany({ blog: req.params.blogId });
     await BlogDislike.deleteMany({ blog: req.params.blogId });
+    await BlogBookmark.deleteMany({ blog: req.params.blogId });
     await BlogComment.deleteMany({ blog: req.params.blogId });
     await Blog.findByIdAndDelete(req.params.blogId);
     res.json({ message: 'Blog deleted successfully' });

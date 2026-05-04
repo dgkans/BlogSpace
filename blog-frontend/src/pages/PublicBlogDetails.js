@@ -18,6 +18,7 @@ function PublicBlogDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reactionBusy, setReactionBusy] = useState(false);
+  const [bookmarkBusy, setBookmarkBusy] = useState(false);
   const [reactionHint, setReactionHint] = useState('');
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
@@ -91,6 +92,23 @@ function PublicBlogDetails() {
       setReactionHint(err.message || 'Dislike did not go through.');
     } finally {
       setReactionBusy(false);
+    }
+  };
+
+  const onBookmark = async () => {
+    setReactionHint('');
+    if (!token) {
+      setReactionHint('Sign in to save posts.');
+      return;
+    }
+    setBookmarkBusy(true);
+    try {
+      const data = await blogApi.togglePublishedBookmark(token, blogId);
+      setBlog((prev) => (prev ? { ...prev, bookmarked: data.bookmarked } : prev));
+    } catch (err) {
+      setReactionHint(err.message || 'Bookmark did not update.');
+    } finally {
+      setBookmarkBusy(false);
     }
   };
 
@@ -243,28 +261,39 @@ function PublicBlogDetails() {
 
         {/* Reaction bar */}
         <section className="blog-like-bar">
-          {ownPost ? (
-            <span className="blog-like-note">Your post</span>
-          ) : (
-            <div className="blog-reaction-row">
-              <button
-                type="button"
-                className={blog?.liked ? 'blog-like-btn on' : 'blog-like-btn'}
-                disabled={reactionBusy}
-                onClick={onLike}
-              >
-                {blog?.liked ? '♥ Liked' : '♡ Like'} · {blog?.likeCount ?? 0}
-              </button>
-              <button
-                type="button"
-                className={blog?.disliked ? 'blog-dislike-btn on' : 'blog-dislike-btn'}
-                disabled={reactionBusy}
-                onClick={onDislike}
-              >
-                {blog?.disliked ? '👎 Disliked' : '👎 Dislike'} · {blog?.dislikeCount ?? 0}
-              </button>
-            </div>
-          )}
+          <div className="blog-reaction-row blog-reaction-row-with-bookmark">
+            {ownPost ? (
+              <span className="blog-like-note">Your post</span>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={blog?.liked ? 'blog-like-btn on' : 'blog-like-btn'}
+                  disabled={reactionBusy}
+                  onClick={onLike}
+                >
+                  {blog?.liked ? '♥ Liked' : '♡ Like'} · {blog?.likeCount ?? 0}
+                </button>
+                <button
+                  type="button"
+                  className={blog?.disliked ? 'blog-dislike-btn on' : 'blog-dislike-btn'}
+                  disabled={reactionBusy}
+                  onClick={onDislike}
+                >
+                  {blog?.disliked ? '👎 Disliked' : '👎 Dislike'} · {blog?.dislikeCount ?? 0}
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              className={blog?.bookmarked ? 'blog-bookmark-btn on' : 'blog-bookmark-btn'}
+              disabled={bookmarkBusy}
+              onClick={onBookmark}
+              title={blog?.bookmarked ? 'Remove from saved' : 'Save post'}
+            >
+              {blog?.bookmarked ? '★ Saved' : '☆ Save'}
+            </button>
+          </div>
           {reactionHint && <p className="blog-like-hint">{reactionHint}</p>}
         </section>
 

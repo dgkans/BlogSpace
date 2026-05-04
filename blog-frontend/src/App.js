@@ -12,6 +12,7 @@ import BlogList from './pages/BlogList';
 import BlogEditor from './pages/BlogEditor';
 import BlogDetails from './pages/BlogDetails';
 import PublicBlogDetails from './pages/PublicBlogDetails';
+import SavedPosts from './pages/SavedPosts';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
@@ -36,7 +37,10 @@ function AppContent() {
             <NavLink to="/contact" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Contact</NavLink>
             <NavLink to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>About</NavLink>
             {isAuthenticated && (
-              <NavLink to="/blogs" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>My Blogs</NavLink>
+              <>
+                <NavLink to="/blogs" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>My Blogs</NavLink>
+                <NavLink to="/saved" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Saved</NavLink>
+              </>
             )}
           </div>
           <div className="nav-auth">
@@ -77,6 +81,14 @@ function AppContent() {
               <EditProfile />
             </ProtectedRoute>
           } 
+        />
+        <Route
+          path="/saved"
+          element={
+            <ProtectedRoute>
+              <SavedPosts />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/blogs"

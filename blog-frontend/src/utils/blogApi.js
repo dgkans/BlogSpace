@@ -103,6 +103,21 @@ export const blogApi = {
     return parseJson(response);
   },
 
+  togglePublishedBookmark: async (token, blogId) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/bookmark`, {
+      method: 'POST',
+      headers: authHeaders(token),
+    });
+    return parseJson(response);
+  },
+
+  listBookmarks: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/me/bookmarks`, {
+      headers: authHeaders(token),
+    });
+    return parseJson(response);
+  },
+
   listComments: async (blogId) => {
     const response = await fetch(`${API_BASE_URL}/api/blogs/public/${blogId}/comments`);
     return parseJson(response);
