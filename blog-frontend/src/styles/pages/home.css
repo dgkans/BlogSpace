@@ -48,8 +48,8 @@
 
 /* ── Stats bar ── */
 .stats-bar {
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border-0);
 }
 
 .stats-bar-inner {
@@ -73,12 +73,12 @@
 .stat-number {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #111;
+  color: var(--text-1);
 }
 
 .stat-label {
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--text-3);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-top: 0.2rem;
@@ -87,12 +87,12 @@
 .stat-divider {
   width: 1px;
   height: 40px;
-  background: #e5e7eb;
+  background: var(--border-0);
 }
 
 /* ── Blog listing ── */
 .section-subtitle {
-  color: #6b7280;
+  color: var(--text-3);
   font-size: 0.9rem;
   margin-top: 0.25rem;
 }
@@ -114,7 +114,7 @@
 .home-published-header h2 {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #111827;
+  color: var(--text-1);
   margin-bottom: 0.2rem;
 }
 
@@ -126,11 +126,11 @@
 
 .home-published-controls input,
 .home-published-controls select {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-0);
   border-radius: 8px;
   padding: 0.5rem 0.8rem;
-  background: #fff;
-  color: #374151;
+  background: var(--surface-1);
+  color: var(--text-2);
   font-size: 0.875rem;
   font-family: inherit;
   transition: border-color 0.15s;
@@ -143,7 +143,7 @@
 .home-published-controls input:focus,
 .home-published-controls select:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
@@ -155,9 +155,9 @@
 
 /* ── Blog cards ── */
 .home-published-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-0);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface-1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -171,7 +171,7 @@
 
 .card-top-bar {
   height: 4px;
-  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  background: linear-gradient(90deg, var(--accent), #7c3aed);
   flex-shrink: 0;
 }
 
@@ -184,7 +184,7 @@
 
 .home-published-meta {
   font-size: 0.82rem;
-  color: #6b7280;
+  color: var(--text-3);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -198,14 +198,14 @@
   align-items: center;
   gap: 0.45rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-2);
 }
 
 .author-avatar {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: linear-gradient(135deg, var(--accent), #7c3aed);
   color: #fff;
   font-size: 0.72rem;
   font-weight: 700;
@@ -219,7 +219,7 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  color: #9ca3af;
+  color: var(--text-4);
 }
 
 .meta-dot {
@@ -229,13 +229,13 @@
 .card-title {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-1);
   line-height: 1.4;
   margin-bottom: 0.6rem;
 }
 
 .card-summary {
-  color: #4b5563;
+  color: var(--text-2);
   font-size: 0.9rem;
   line-height: 1.6;
   flex: 1;
@@ -253,7 +253,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding-top: 0.75rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--surface-3);
 }
 
 .home-like-block {
@@ -270,16 +270,16 @@
   cursor: pointer;
   padding: 0.3rem 0.6rem;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  color: #374151;
+  border: 1px solid var(--border-0);
+  background: var(--surface-2);
+  color: var(--text-2);
   transition: all 0.15s;
 }
 
 .home-like-btn:hover:not(:disabled),
 .home-dislike-btn:hover:not(:disabled) {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: var(--surface-3);
+  border-color: var(--border-2);
 }
 
 .home-like-btn:disabled,
@@ -302,8 +302,8 @@
 
 .home-like-note {
   font-size: 0.82rem;
-  color: #9ca3af;
-  background: #f3f4f6;
+  color: var(--text-4);
+  background: var(--surface-3);
   padding: 0.25rem 0.6rem;
   border-radius: 6px;
 }
@@ -314,15 +314,15 @@
   cursor: pointer;
   padding: 0.3rem 0.6rem;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  color: #374151;
+  border: 1px solid var(--border-0);
+  background: var(--surface-2);
+  color: var(--text-2);
   transition: all 0.15s;
 }
 
 .home-bookmark-btn:hover:not(:disabled) {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: var(--surface-3);
+  border-color: var(--border-2);
 }
 
 .home-bookmark-btn:disabled {
@@ -339,18 +339,18 @@
 .card-read-link {
   font-size: 0.88rem;
   font-weight: 600;
-  color: #2563eb;
+  color: var(--accent);
   text-decoration: none;
   padding: 0.3rem 0.75rem;
   border-radius: 6px;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
+  border: 1px solid var(--accent-soft-border);
+  background: var(--accent-soft-bg);
   transition: all 0.15s;
 }
 
 .card-read-link:hover {
-  background: #dbeafe;
-  border-color: #93c5fd;
+  background: var(--accent-soft-bg-hover);
+  border-color: var(--accent-hover);
 }
 
 /* ── Card thumbnail ── */
@@ -380,9 +380,9 @@
   gap: 0.25rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: #2563eb;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  color: var(--accent);
+  background: var(--accent-soft-bg);
+  border: 1px solid var(--accent-soft-border);
   border-radius: 100px;
   padding: 0.2rem 0.6rem;
 }
@@ -394,14 +394,14 @@
 }
 
 .tag-chip-btn:hover {
-  background: #dbeafe;
-  border-color: #93c5fd;
+  background: var(--accent-soft-bg-hover);
+  border-color: var(--accent-hover);
 }
 
 .tag-chip-btn.active {
-  background: #2563eb;
+  background: var(--accent);
   color: #fff;
-  border-color: #2563eb;
+  border-color: var(--accent);
 }
 
 .card-tags {
@@ -418,13 +418,13 @@
   gap: 0.5rem;
   margin-bottom: 1rem;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-3);
 }
 
 .active-tag-chip {
-  background: #2563eb;
+  background: var(--accent);
   color: #fff;
-  border-color: #2563eb;
+  border-color: var(--accent);
 }
 
 .active-tag-chip .tag-remove {
@@ -444,9 +444,9 @@
 
 /* ── Empty / error states ── */
 .home-published-empty {
-  border: 1px dashed #d1d5db;
+  border: 1px dashed var(--border-2);
   border-radius: 12px;
-  background: #f9fafb;
+  background: var(--surface-2);
   padding: 2.5rem 1.5rem;
   text-align: center;
   grid-column: 1 / -1;
@@ -458,12 +458,12 @@
 }
 
 .home-published-empty h3 {
-  color: #374151;
+  color: var(--text-2);
   margin-bottom: 0.4rem;
 }
 
 .home-published-empty p {
-  color: #6b7280;
+  color: var(--text-3);
   font-size: 0.9rem;
 }
 
@@ -481,8 +481,8 @@
 .loading-spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #2563eb;
+  border: 3px solid var(--border-0);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   margin: 0 auto 0.75rem;
@@ -497,7 +497,7 @@
 /* ── Features section ── */
 .features {
   padding: 4rem 0;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--surface-3);
 }
 
 .features-header {
@@ -508,12 +508,12 @@
 .features-header h2 {
   font-size: 1.8rem;
   font-weight: 800;
-  color: #111827;
+  color: var(--text-1);
   margin-bottom: 0.5rem;
 }
 
 .features-header p {
-  color: #6b7280;
+  color: var(--text-3);
   font-size: 1rem;
 }
 
@@ -524,10 +524,10 @@
 }
 
 .feature-card {
-  background: #fff;
+  background: var(--surface-1);
   padding: 1.5rem;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-0);
   transition: box-shadow 0.18s ease, transform 0.18s ease;
 }
 
@@ -547,7 +547,7 @@
   margin-bottom: 1rem;
 }
 
-.feature-icon-blue   { background: #eff6ff; }
+.feature-icon-blue   { background: var(--accent-soft-bg); }
 .feature-icon-green  { background: #f0fdf4; }
 .feature-icon-amber  { background: #fffbeb; }
 .feature-icon-red    { background: #fef2f2; }
@@ -557,12 +557,12 @@
 .feature-card h3 {
   font-size: 1rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-1);
   margin-bottom: 0.4rem;
 }
 
 .feature-card p {
-  color: #6b7280;
+  color: var(--text-3);
   font-size: 0.875rem;
   line-height: 1.6;
   margin: 0;
@@ -594,12 +594,12 @@
 }
 
 .cta-section .cta-button.secondary {
-  color: #374151;
-  border-color: #d1d5db;
-  background: #fff;
+  color: var(--text-2);
+  border-color: var(--border-2);
+  background: var(--surface-1);
 }
 
 .cta-section .cta-button.secondary:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--surface-2);
+  border-color: var(--text-4);
 }

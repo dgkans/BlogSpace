@@ -55,12 +55,12 @@
 .about-section-header h2 {
   font-size: 1.7rem;
   font-weight: 800;
-  color: #111827;
+  color: var(--text-1);
   margin-bottom: 0.4rem;
 }
 
 .about-section-header p {
-  color: #6b7280;
+  color: var(--text-3);
   font-size: 0.95rem;
 }
 
@@ -73,8 +73,8 @@
 }
 
 .about-mv-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-1);
+  border: 1px solid var(--border-0);
   border-radius: 16px;
   padding: 2rem;
 }
@@ -87,12 +87,12 @@
 .about-mv-card h2 {
   font-size: 1.2rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-1);
   margin-bottom: 0.75rem;
 }
 
 .about-mv-card p {
-  color: #4b5563;
+  color: var(--text-2);
   line-height: 1.7;
   font-size: 0.925rem;
   margin: 0;
@@ -110,8 +110,8 @@
 }
 
 .about-value-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-1);
+  border: 1px solid var(--border-0);
   border-radius: 12px;
   padding: 1.5rem;
   text-align: center;
@@ -131,13 +131,13 @@
 .about-value-card h3 {
   font-size: 1rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-1);
   margin-bottom: 0.4rem;
 }
 
 .about-value-card p {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-3);
   line-height: 1.55;
   margin: 0;
 }
@@ -154,8 +154,8 @@
 }
 
 .about-team-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-1);
+  border: 1px solid var(--border-0);
   border-radius: 16px;
   padding: 2rem 1.5rem;
   text-align: center;
@@ -183,7 +183,7 @@
 .about-team-card h3 {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-1);
   margin-bottom: 0.25rem;
 }
 
@@ -191,8 +191,8 @@
   display: inline-block;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #2563eb;
-  background: #eff6ff;
+  color: var(--accent);
+  background: var(--accent-soft-bg);
   border-radius: 100px;
   padding: 0.2rem 0.7rem;
   margin-bottom: 0.85rem;
@@ -201,7 +201,7 @@
 
 .about-team-card p {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-3);
   line-height: 1.6;
   margin: 0;
 }
@@ -212,8 +212,8 @@
 }
 
 .about-story-inner {
-  background: linear-gradient(135deg, #f8faff 0%, #f3f0ff 100%);
-  border: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, var(--story-gradient-start) 0%, var(--story-gradient-end) 100%);
+  border: 1px solid var(--border-0);
   border-radius: 16px;
   padding: 2.5rem;
   max-width: 780px;
@@ -223,12 +223,12 @@
 .about-story-inner h2 {
   font-size: 1.4rem;
   font-weight: 800;
-  color: #111827;
+  color: var(--text-1);
   margin-bottom: 1rem;
 }
 
 .about-story-inner p {
-  color: #4b5563;
+  color: var(--text-2);
   line-height: 1.75;
   font-size: 0.95rem;
   margin-bottom: 0.85rem;
