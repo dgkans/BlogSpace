@@ -1,11 +1,11 @@
 .App-header {
-  background: #fff;
+  background: var(--surface-1);
   padding: 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-0);
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-header);
 }
 
 .nav {
@@ -47,7 +47,7 @@
 
 /* Generic nav link */
 .nav-link {
-  color: #4b5563;
+  color: var(--nav-link);
   text-decoration: none;
   font-weight: 500;
   font-size: 0.9rem;
@@ -58,34 +58,58 @@
 }
 
 .nav-link:hover {
-  color: #111827;
-  background: #f3f4f6;
+  color: var(--nav-link-strong);
+  background: var(--surface-3);
   text-decoration: none;
 }
 
 .nav-link.active {
-  color: #2563eb;
-  background: #eff6ff;
+  color: var(--accent);
+  background: var(--accent-soft-bg);
   font-weight: 600;
 }
 
 /* User name link in auth area */
 .nav-auth .nav-link {
-  color: #374151;
+  color: var(--text-2);
   font-weight: 600;
 }
 
 .nav-auth .nav-link.active {
-  color: #2563eb;
-  background: #eff6ff;
+  color: var(--accent);
+  background: var(--accent-soft-bg);
 }
 
 /* Logout button */
+.theme-toggle {
+  padding: 0.4rem 0.65rem;
+  background: transparent;
+  color: var(--text-3);
+  border: 1px solid var(--border-0);
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+  border-color: var(--border-2);
+}
+
+.theme-toggle-icon {
+  display: block;
+}
+
 .btn-logout {
   padding: 0.4rem 0.9rem;
   background: transparent;
-  color: #6b7280;
-  border: 1px solid #e5e7eb;
+  color: var(--text-3);
+  border: 1px solid var(--border-0);
   border-radius: 6px;
   font-weight: 500;
   cursor: pointer;
@@ -94,9 +118,9 @@
 }
 
 .btn-logout:hover {
-  background: #fef2f2;
-  color: #dc2626;
-  border-color: #fca5a5;
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--logout-hover-text);
+  border-color: var(--logout-hover-border);
 }
 
 /* Shared filled button base */
@@ -113,11 +137,11 @@
 }
 
 .btn-primary {
-  background: #2563eb;
+  background: var(--accent);
 }
 
 .btn-primary:hover {
-  background: #1d4ed8;
+  background: var(--accent-hover);
 }
 
 .btn-danger {
@@ -130,7 +154,7 @@
 
 /* Sign Up pill */
 .nav-register {
-  background: #2563eb !important;
+  background: var(--accent) !important;
   color: #fff !important;
   padding: 0.4rem 1rem !important;
   border-radius: 6px !important;
@@ -141,12 +165,12 @@
 }
 
 .nav-register:hover {
-  background: #1d4ed8 !important;
+  background: var(--accent-hover) !important;
   color: #fff !important;
 }
 
 .nav-register.active {
-  background: #1d4ed8 !important;
+  background: var(--accent-hover) !important;
 }
 
 /* Mobile */
@@ -169,5 +193,9 @@
 
   .nav-auth {
     margin-left: auto;
+  }
+
+  .theme-toggle {
+    order: 2;
   }
 }
