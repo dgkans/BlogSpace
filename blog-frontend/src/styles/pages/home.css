@@ -308,6 +308,34 @@
   border-radius: 6px;
 }
 
+.home-bookmark-btn {
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #374151;
+  transition: all 0.15s;
+}
+
+.home-bookmark-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.home-bookmark-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.home-bookmark-btn.on {
+  border-color: #fcd34d;
+  color: #b45309;
+  background: #fffbeb;
+}
+
 .card-read-link {
   font-size: 0.88rem;
   font-weight: 600;
