@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { blogApi } from '../utils/blogApi';
@@ -8,6 +8,9 @@ function BlogList() {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [tagFilter, setTagFilter] = useState('');
+  const [sort, setSort] = useState('newest');
 
   useEffect(() => {
     const fetchBlogs = async () => {
@@ -53,6 +56,41 @@ function BlogList() {
   const drafts = blogs.filter((b) => b.status === 'draft');
   const published = blogs.filter((b) => b.status === 'published');
 
+  const filteredBlogs = useMemo(() => {
+    const normalizedTag = tagFilter.trim().toLowerCase();
+
+    const byStatusAndTag = blogs.filter((blog) => {
+      if (statusFilter !== 'all' && blog.status !== statusFilter) {
+        return false;
+      }
+
+      if (!normalizedTag) return true;
+      const tags = Array.isArray(blog.tags) ? blog.tags : [];
+      return tags.some((t) => String(t).toLowerCase().includes(normalizedTag));
+    });
+
+    const sorted = [...byStatusAndTag].sort((a, b) => {
+      const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+
+      if (sort === 'oldest') {
+        return dateA - dateB;
+      }
+
+      if (sort === 'mostLiked') {
+        const likeA = a.likeCount ?? 0;
+        const likeB = b.likeCount ?? 0;
+        if (likeB !== likeA) return likeB - likeA;
+        return dateB - dateA;
+      }
+
+      // Default: newest first
+      return dateB - dateA;
+    });
+
+    return sorted;
+  }, [blogs, statusFilter, tagFilter, sort]);
+
   if (loading) {
     return (
       <main className="page-content blog-page">
@@ -75,12 +113,38 @@ function BlogList() {
               : `${published.length} published · ${drafts.length} draft${drafts.length !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <Link to="/blogs/new" className="btn-primary">+ New Post</Link>
+        <div className="editor-header-actions">
+          <div className="home-published-controls" aria-label="Blog filters">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All statuses</option>
+              <option value="published">Published</option>
+              <option value="draft">Drafts</option>
+            </select>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="mostLiked">Most liked</option>
+            </select>
+            <input
+              type="search"
+              placeholder="Filter by tag…"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+            />
+          </div>
+          <Link to="/blogs/new" className="btn-primary">+ New Post</Link>
+        </div>
       </section>
 
       {error && <div className="error-message">{error}</div>}
 
-      {blogs.length === 0 ? (
+      {filteredBlogs.length === 0 ? (
         <section className="blog-empty-state">
           <div className="empty-icon-svg"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></div>
           <h2>No blog posts yet</h2>
@@ -89,7 +153,7 @@ function BlogList() {
         </section>
       ) : (
         <div className="my-posts-list">
-          {blogs.map((blog) => (
+          {filteredBlogs.map((blog) => (
             <article className="my-post-card" key={blog.id}>
               <div className="my-post-card-inner">
                 {/* Thumbnail */}

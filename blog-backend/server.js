@@ -483,7 +483,23 @@ app.get('/api/blogs/public', optionalAuth, async (req, res) => {
       )
     );
 
-    res.json({ blogs: payload });
+    let result = payload;
+
+    // For "most liked" we sort in-memory by likeCount while keeping
+    // a reasonable published/created-at tiebreaker.
+    if (sort === 'likes' || sort === 'mostLiked') {
+      result = [...payload].sort((a, b) => {
+        const likeA = a.likeCount ?? 0;
+        const likeB = b.likeCount ?? 0;
+        if (likeB !== likeA) return likeB - likeA;
+
+        const dateA = new Date(a.publishedAt || a.createdAt || 0).getTime();
+        const dateB = new Date(b.publishedAt || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+    }
+
+    res.json({ blogs: result });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching published blogs' });
@@ -819,7 +835,18 @@ app.get('/api/blogs', verifyToken, async (req, res) => {
 
   try {
     const blogs = await Blog.find(filter).sort({ updated_at: -1 });
-    res.json({ blogs: blogs.map(formatBlog) });
+    const ids = blogs.map((b) => b._id);
+    const likeMap = await likeCountsForBlogs(ids);
+
+    res.json({
+      blogs: blogs.map((blog) => {
+        const base = formatBlog(blog);
+        return {
+          ...base,
+          likeCount: likeMap.get(String(blog._id)) || 0,
+        };
+      }),
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching blogs' });
