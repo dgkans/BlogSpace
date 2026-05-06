@@ -187,6 +187,7 @@ function Home() {
               <select value={sort} onChange={(e) => setSort(e.target.value)}>
                 <option value="newest">Newest first</option>
                 <option value="oldest">Oldest first</option>
+                <option value="likes">Most liked</option>
               </select>
             </div>
           </div>
