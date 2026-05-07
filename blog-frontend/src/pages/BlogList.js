@@ -64,18 +64,71 @@ function BlogList() {
     );
   }
 
+  const renderCard = (blog) => (
+    <article className={`my-post-card status-${blog.status}`} key={blog.id}>
+      <div className="my-post-card-inner">
+        {blog.thumbnailUrl && (
+          <div className="my-post-thumb">
+            <img src={blog.thumbnailUrl} alt={blog.title} />
+          </div>
+        )}
+        <div className="my-post-body">
+          <div className="my-post-head">
+            <div>
+              <h2 className="my-post-title">{blog.title || 'Untitled'}</h2>
+              <p className="my-post-meta">
+                Updated {new Date(blog.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {blog.status === 'published' && blog.publishedAt && (
+                  <> · Published {new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>
+                )}
+              </p>
+            </div>
+            <span className={`status-badge status-${blog.status}`}>{blog.status}</span>
+          </div>
+
+          {blog.summary && (
+            <p className="my-post-summary">{blog.summary}</p>
+          )}
+
+          {blog.tags?.length > 0 && (
+            <div className="blog-list-tags">
+              {blog.tags.map((tag) => <span key={tag} className="tag-chip">{tag}</span>)}
+            </div>
+          )}
+
+          <div className="my-post-actions">
+            <Link to={`/blogs/${blog.id}`} className="btn-link view-btn">View</Link>
+            <Link to={`/blogs/${blog.id}/edit`} className="btn-link edit-btn">Edit</Link>
+            {blog.status === 'draft' && (
+              <button className="btn-link publish-btn" onClick={() => handlePublish(blog.id)}>
+                Publish
+              </button>
+            )}
+            {blog.status === 'published' && (
+              <Link to={`/blogs/public/${blog.id}`} className="btn-link public-btn" target="_blank" rel="noopener noreferrer">
+                Public View ↗
+              </Link>
+            )}
+            <button className="btn-link danger" onClick={() => handleDelete(blog.id)}>
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+
   return (
     <main className="page-content blog-page">
-      <section className="blog-list-header">
+      <section className="my-posts-header">
         <div>
           <h1>My Blog Posts</h1>
-          <p>
-            {blogs.length === 0
-              ? 'No posts yet — create your first one.'
-              : `${published.length} published · ${drafts.length} draft${drafts.length !== 1 ? 's' : ''}`}
-          </p>
+          <div className="my-posts-stats">
+            <span className="stat-pill stat-published">{published.length} published</span>
+            <span className="stat-pill stat-draft">{drafts.length} draft{drafts.length !== 1 ? 's' : ''}</span>
+          </div>
         </div>
-        <Link to="/blogs/new" className="btn-primary">+ New Post</Link>
+        <Link to="/blogs/new" className="btn-new-post">+ New Post</Link>
       </section>
 
       {error && <div className="error-message">{error}</div>}
@@ -89,62 +142,18 @@ function BlogList() {
         </section>
       ) : (
         <div className="my-posts-list">
-          {blogs.map((blog) => (
-            <article className="my-post-card" key={blog.id}>
-              <div className="my-post-card-inner">
-                {/* Thumbnail */}
-                {blog.thumbnailUrl && (
-                  <div className="my-post-thumb">
-                    <img src={blog.thumbnailUrl} alt={blog.title} />
-                  </div>
-                )}
-
-                {/* Body */}
-                <div className="my-post-body">
-                  <div className="my-post-head">
-                    <div>
-                      <h2 className="my-post-title">{blog.title || 'Untitled'}</h2>
-                      <p className="my-post-meta">
-                        Updated {new Date(blog.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        {blog.status === 'published' && blog.publishedAt && (
-                          <> · Published {new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>
-                        )}
-                      </p>
-                    </div>
-                    <span className={`status-badge status-${blog.status}`}>{blog.status}</span>
-                  </div>
-
-                  {blog.summary && (
-                    <p className="my-post-summary">{blog.summary}</p>
-                  )}
-
-                  {blog.tags?.length > 0 && (
-                    <div className="blog-list-tags">
-                      {blog.tags.map((tag) => <span key={tag} className="tag-chip">{tag}</span>)}
-                    </div>
-                  )}
-
-                  <div className="my-post-actions">
-                    <Link to={`/blogs/${blog.id}`} className="btn-link">View</Link>
-                    <Link to={`/blogs/${blog.id}/edit`} className="btn-link">Edit</Link>
-                    {blog.status === 'draft' && (
-                      <button className="btn-link publish-btn" onClick={() => handlePublish(blog.id)}>
-                        Publish
-                      </button>
-                    )}
-                    {blog.status === 'published' && (
-                      <Link to={`/blogs/public/${blog.id}`} className="btn-link" target="_blank" rel="noopener noreferrer">
-                        Public View ↗
-                      </Link>
-                    )}
-                    <button className="btn-link danger" onClick={() => handleDelete(blog.id)}>
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))}
+          {published.length > 0 && (
+            <>
+              <div className="posts-section-label">Published · {published.length}</div>
+              {published.map(renderCard)}
+            </>
+          )}
+          {drafts.length > 0 && (
+            <>
+              <div className="posts-section-label">Drafts · {drafts.length}</div>
+              {drafts.map(renderCard)}
+            </>
+          )}
         </div>
       )}
     </main>
