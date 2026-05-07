@@ -1,6 +1,7 @@
 import './styles/index.css';
 import { BrowserRouter as Router, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import Home from './pages/Home';
 import ContactUs from './pages/ContactUs';
 import AboutUs from './pages/AboutUs';
@@ -12,10 +13,12 @@ import BlogList from './pages/BlogList';
 import BlogEditor from './pages/BlogEditor';
 import BlogDetails from './pages/BlogDetails';
 import PublicBlogDetails from './pages/PublicBlogDetails';
+import SavedPosts from './pages/SavedPosts';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
   const { isAuthenticated, logout, user, loading } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -36,9 +39,23 @@ function AppContent() {
             <NavLink to="/contact" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Contact</NavLink>
             <NavLink to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>About</NavLink>
             {isAuthenticated && (
-              <NavLink to="/blogs" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>My Blogs</NavLink>
+              <>
+                <NavLink to="/blogs" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>My Blogs</NavLink>
+                <NavLink to="/saved" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Saved</NavLink>
+              </>
             )}
           </div>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          >
+            <span className="theme-toggle-icon" aria-hidden="true">
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </span>
+          </button>
           <div className="nav-auth">
             {isAuthenticated ? (
               <>
@@ -77,6 +94,14 @@ function AppContent() {
               <EditProfile />
             </ProtectedRoute>
           } 
+        />
+        <Route
+          path="/saved"
+          element={
+            <ProtectedRoute>
+              <SavedPosts />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/blogs"
@@ -119,9 +144,11 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   );
 }

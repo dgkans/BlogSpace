@@ -22,6 +22,7 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyReactionId, setBusyReactionId] = useState(null);
+  const [busyBookmarkId, setBusyBookmarkId] = useState(null);
   const [reactionHint, setReactionHint] = useState('');
 
   useEffect(() => {
@@ -91,6 +92,26 @@ function Home() {
       setReactionHint(err.message || 'Dislike did not go through.');
     } finally {
       setBusyReactionId(null);
+    }
+  };
+
+  const onBookmarkClick = async (blog, ev) => {
+    ev.preventDefault();
+    setReactionHint('');
+    if (!token) {
+      setReactionHint('Sign in to save posts.');
+      return;
+    }
+    setBusyBookmarkId(blog.id);
+    try {
+      const data = await blogApi.togglePublishedBookmark(token, blog.id);
+      setBlogs((prev) =>
+        prev.map((b) => (b.id === blog.id ? { ...b, bookmarked: data.bookmarked } : b))
+      );
+    } catch (err) {
+      setReactionHint(err.message || 'Bookmark did not update.');
+    } finally {
+      setBusyBookmarkId(null);
     }
   };
 
@@ -166,6 +187,7 @@ function Home() {
               <select value={sort} onChange={(e) => setSort(e.target.value)}>
                 <option value="newest">Newest first</option>
                 <option value="oldest">Oldest first</option>
+                <option value="likes">Most liked</option>
               </select>
             </div>
           </div>
@@ -254,6 +276,15 @@ function Home() {
                           </button>
                         </>
                       )}
+                      <button
+                        type="button"
+                        className={blog.bookmarked ? 'home-bookmark-btn on' : 'home-bookmark-btn'}
+                        disabled={busyBookmarkId === blog.id}
+                        onClick={(ev) => onBookmarkClick(blog, ev)}
+                        title={blog.bookmarked ? 'Remove from saved' : 'Save post'}
+                      >
+                        {blog.bookmarked ? '★' : '☆'} Save
+                      </button>
                     </div>
                     <Link to={`/blogs/public/${blog.id}`} className="card-read-link">
                       Read →

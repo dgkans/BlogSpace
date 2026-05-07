@@ -35,8 +35,8 @@
 
 /* ── Form card ── */
 .contact-form-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-1);
+  border: 1px solid var(--border-0);
   border-radius: 16px;
   padding: 2rem;
 }
@@ -44,12 +44,12 @@
 .contact-form-card h2 {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-1);
   margin-bottom: 0.3rem;
 }
 
 .contact-form-desc {
-  color: #6b7280;
+  color: var(--text-3);
   font-size: 0.875rem;
   margin-bottom: 1.5rem;
 }
@@ -61,7 +61,7 @@
 }
 
 .contact-submit {
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: linear-gradient(135deg, var(--accent), #7c3aed);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -79,9 +79,9 @@
 }
 
 .contact-success {
-  background: #f0fdf4;
-  border: 1px solid #86efac;
-  color: #166534;
+  background: var(--contact-success-bg);
+  border: 1px solid var(--contact-success-border);
+  color: var(--contact-success-text);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
@@ -96,8 +96,8 @@
 }
 
 .contact-info-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-1);
+  border: 1px solid var(--border-0);
   border-radius: 12px;
   padding: 1.25rem 1.5rem;
   display: flex;
@@ -113,19 +113,19 @@
 .contact-info-card h3 {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-1);
 }
 
 .contact-info-card p {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-3);
   margin: 0;
 }
 
 /* ── Social links ── */
 .contact-social-block {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-1);
+  border: 1px solid var(--border-0);
   border-radius: 12px;
   padding: 1.25rem 1.5rem;
 }
@@ -133,7 +133,7 @@
 .contact-social-block h3 {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-1);
   margin-bottom: 0.75rem;
 }
 
@@ -149,18 +149,18 @@
   gap: 0.75rem;
   padding: 0.6rem 0.85rem;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-0);
   text-decoration: none;
-  color: #374151;
+  color: var(--text-2);
   font-size: 0.875rem;
   font-weight: 500;
   transition: border-color 0.15s, background 0.15s;
 }
 
 .contact-social-btn:hover {
-  border-color: var(--social-color, #2563eb);
-  color: var(--social-color, #2563eb);
-  background: #f9fafb;
+  border-color: var(--social-color, var(--accent));
+  color: var(--social-color, var(--accent));
+  background: var(--surface-2);
 }
 
 .social-icon {

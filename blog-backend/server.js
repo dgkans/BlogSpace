@@ -10,6 +10,8 @@ import User from './models/User.js';
 import Blog from './models/Blog.js';
 import BlogLike from './models/BlogLike.js';
 import BlogDislike from './models/BlogDislike.js';
+import BlogComment from './models/BlogComment.js';
+import BlogBookmark from './models/BlogBookmark.js';
 
 dotenv.config();
 
@@ -158,12 +160,33 @@ const dislikedBlogIdsForUser = async (blogIds, userId) => {
   return new Set(rows.map((r) => String(r.blog)));
 };
 
-const publicBlogJson = (doc, likeCount, liked, dislikeCount, disliked) => ({
+const bookmarkedBlogIdsForUser = async (blogIds, userId) => {
+  if (!blogIds.length || !userId) return new Set();
+  const rows = await BlogBookmark.find({ blog: { $in: blogIds }, user: userId })
+    .select('blog')
+    .lean();
+  return new Set(rows.map((r) => String(r.blog)));
+};
+
+const publicBlogJson = (doc, likeCount, liked, dislikeCount, disliked, bookmarked = false) => ({
   ...formatPublicBlog(doc),
   likeCount,
   liked,
   dislikeCount,
   disliked,
+  bookmarked,
+});
+
+const formatComment = (comment) => ({
+  id: comment._id,
+  blogId: comment.blog,
+  content: comment.content,
+  createdAt: comment.created_at,
+  updatedAt: comment.updated_at,
+  author: {
+    id: comment.user?._id,
+    fullName: comment.user?.full_name || 'Unknown User',
+  },
 });
 
 // Routes
@@ -447,6 +470,7 @@ app.get('/api/blogs/public', optionalAuth, async (req, res) => {
     const dislikeCountMap = await dislikeCountsForBlogs(ids);
     const likedSet = await likedBlogIdsForUser(ids, viewerId);
     const dislikedSet = await dislikedBlogIdsForUser(ids, viewerId);
+    const bookmarkedSet = await bookmarkedBlogIdsForUser(ids, viewerId);
 
     const payload = blogs.map((b) =>
       publicBlogJson(
@@ -454,11 +478,28 @@ app.get('/api/blogs/public', optionalAuth, async (req, res) => {
         countMap.get(String(b._id)) || 0,
         viewerId ? likedSet.has(String(b._id)) : false,
         dislikeCountMap.get(String(b._id)) || 0,
-        viewerId ? dislikedSet.has(String(b._id)) : false
+        viewerId ? dislikedSet.has(String(b._id)) : false,
+        viewerId ? bookmarkedSet.has(String(b._id)) : false
       )
     );
 
-    res.json({ blogs: payload });
+    let result = payload;
+
+    // For "most liked" we sort in-memory by likeCount while keeping
+    // a reasonable published/created-at tiebreaker.
+    if (sort === 'likes' || sort === 'mostLiked') {
+      result = [...payload].sort((a, b) => {
+        const likeA = a.likeCount ?? 0;
+        const likeB = b.likeCount ?? 0;
+        if (likeB !== likeA) return likeB - likeA;
+
+        const dateA = new Date(a.publishedAt || a.createdAt || 0).getTime();
+        const dateB = new Date(b.publishedAt || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+    }
+
+    res.json({ blogs: result });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching published blogs' });
@@ -484,12 +525,14 @@ app.get('/api/blogs/public/:blogId', optionalAuth, async (req, res) => {
     const dislikeCount = await BlogDislike.countDocuments({ blog: blog._id });
     let liked = false;
     let disliked = false;
+    let bookmarked = false;
     if (viewerId) {
       liked = !!(await BlogLike.findOne({ blog: blog._id, user: viewerId }));
       disliked = !!(await BlogDislike.findOne({ blog: blog._id, user: viewerId }));
+      bookmarked = !!(await BlogBookmark.findOne({ blog: blog._id, user: viewerId }));
     }
 
-    res.json({ blog: publicBlogJson(blog, likeCount, liked, dislikeCount, disliked) });
+    res.json({ blog: publicBlogJson(blog, likeCount, liked, dislikeCount, disliked, bookmarked) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching published blog details' });
@@ -576,6 +619,180 @@ app.post('/api/blogs/public/:blogId/dislike', verifyToken, async (req, res) => {
   }
 });
 
+app.post('/api/blogs/public/:blogId/bookmark', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    });
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    const existing = await BlogBookmark.findOne({
+      blog: blog._id,
+      user: req.user.userId,
+    });
+
+    let bookmarked;
+    if (existing) {
+      await existing.deleteOne();
+      bookmarked = false;
+    } else {
+      await BlogBookmark.create({ blog: blog._id, user: req.user.userId });
+      bookmarked = true;
+    }
+
+    res.json({ bookmarked });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error updating bookmark' });
+  }
+});
+
+app.get('/api/blogs/public/:blogId/comments', async (req, res) => {
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    }).select('_id');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    const comments = await BlogComment.find({ blog: blog._id })
+      .populate('user', 'full_name')
+      .sort({ created_at: -1 })
+      .limit(200)
+      .lean();
+
+    return res.json({ comments: comments.map(formatComment) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching comments' });
+  }
+});
+
+app.post('/api/blogs/public/:blogId/comments', verifyToken, async (req, res) => {
+  const content = String(req.body?.content || '').trim();
+  if (!content) {
+    return res.status(400).json({ message: 'Comment cannot be empty' });
+  }
+  if (content.length > 1200) {
+    return res.status(400).json({ message: 'Comment is too long (max 1200 characters)' });
+  }
+
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    }).select('_id author');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    const saved = await BlogComment.create({
+      blog: blog._id,
+      user: req.user.userId,
+      content,
+    });
+
+    const comment = await BlogComment.findById(saved._id)
+      .populate('user', 'full_name')
+      .lean();
+
+    return res.status(201).json({ comment: formatComment(comment) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error creating comment' });
+  }
+});
+
+app.put('/api/blogs/public/:blogId/comments/:commentId', verifyToken, async (req, res) => {
+  const content = String(req.body?.content || '').trim();
+  if (!content) {
+    return res.status(400).json({ message: 'Comment cannot be empty' });
+  }
+  if (content.length > 1200) {
+    return res.status(400).json({ message: 'Comment is too long (max 1200 characters)' });
+  }
+
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    }).select('_id author');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    const comment = await BlogComment.findOne({
+      _id: req.params.commentId,
+      blog: blog._id,
+    });
+
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    const isCommentAuthor = String(comment.user) === req.user.userId;
+    const isBlogAuthor = String(blog.author) === req.user.userId;
+    if (!isCommentAuthor && !isBlogAuthor) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    comment.content = content;
+    await comment.save();
+
+    const populated = await BlogComment.findById(comment._id)
+      .populate('user', 'full_name')
+      .lean();
+
+    return res.json({ comment: formatComment(populated) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error updating comment' });
+  }
+});
+
+app.delete('/api/blogs/public/:blogId/comments/:commentId', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findOne({
+      _id: req.params.blogId,
+      status: 'published',
+    }).select('_id author');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Published blog not found' });
+    }
+
+    const comment = await BlogComment.findOne({
+      _id: req.params.commentId,
+      blog: blog._id,
+    });
+
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    const isCommentAuthor = String(comment.user) === req.user.userId;
+    const isBlogAuthor = String(blog.author) === req.user.userId;
+    if (!isCommentAuthor && !isBlogAuthor) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    await comment.deleteOne();
+    return res.json({ message: 'Comment deleted successfully', commentId: req.params.commentId });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error deleting comment' });
+  }
+});
+
 app.post('/api/blogs', verifyToken, async (req, res) => {
   const payload = sanitizeBlogPayload(req.body);
 
@@ -618,10 +835,57 @@ app.get('/api/blogs', verifyToken, async (req, res) => {
 
   try {
     const blogs = await Blog.find(filter).sort({ updated_at: -1 });
-    res.json({ blogs: blogs.map(formatBlog) });
+    const ids = blogs.map((b) => b._id);
+    const likeMap = await likeCountsForBlogs(ids);
+
+    res.json({
+      blogs: blogs.map((blog) => {
+        const base = formatBlog(blog);
+        return {
+          ...base,
+          likeCount: likeMap.get(String(blog._id)) || 0,
+        };
+      }),
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching blogs' });
+  }
+});
+
+app.get('/api/blogs/me/bookmarks', verifyToken, async (req, res) => {
+  try {
+    const rows = await BlogBookmark.find({ user: req.user.userId })
+      .sort({ created_at: -1 })
+      .populate({
+        path: 'blog',
+        populate: { path: 'author', select: 'full_name' },
+      })
+      .lean();
+
+    const blogs = rows.map((r) => r.blog).filter((b) => b && b.status === 'published');
+    const ids = blogs.map((b) => b._id);
+    const viewerId = req.user.userId;
+    const countMap = await likeCountsForBlogs(ids);
+    const dislikeCountMap = await dislikeCountsForBlogs(ids);
+    const likedSet = await likedBlogIdsForUser(ids, viewerId);
+    const dislikedSet = await dislikedBlogIdsForUser(ids, viewerId);
+
+    const payload = blogs.map((b) =>
+      publicBlogJson(
+        b,
+        countMap.get(String(b._id)) || 0,
+        likedSet.has(String(b._id)),
+        dislikeCountMap.get(String(b._id)) || 0,
+        dislikedSet.has(String(b._id)),
+        true
+      )
+    );
+
+    res.json({ blogs: payload });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching bookmarks' });
   }
 });
 
@@ -725,6 +989,8 @@ app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
 
     await BlogLike.deleteMany({ blog: req.params.blogId });
     await BlogDislike.deleteMany({ blog: req.params.blogId });
+    await BlogBookmark.deleteMany({ blog: req.params.blogId });
+    await BlogComment.deleteMany({ blog: req.params.blogId });
     await Blog.findByIdAndDelete(req.params.blogId);
     res.json({ message: 'Blog deleted successfully' });
   } catch (err) {
