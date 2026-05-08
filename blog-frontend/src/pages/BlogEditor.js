@@ -44,6 +44,7 @@ function BlogEditor() {
   const [tagInput, setTagInput] = useState('');
   const [contentHtml, setContentHtml] = useState('');
   const [contentDelta, setContentDelta] = useState(emptyDelta);
+  const [scheduledAt, setScheduledAt] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
@@ -78,6 +79,7 @@ function BlogEditor() {
         setTags(data.blog.tags || []);
         setContentHtml(data.blog.contentHtml || '');
         setContentDelta(data.blog.contentDelta || emptyDelta);
+        setScheduledAt(data.blog.scheduledAt ? new Date(data.blog.scheduledAt).toISOString().slice(0, 16) : '');
       } catch (err) {
         setError(err.message || 'Failed to load blog for editing');
       } finally {
@@ -109,6 +111,7 @@ function BlogEditor() {
       setTags(Array.isArray(parsed.tags) ? parsed.tags : []);
       setContentHtml(parsed.contentHtml || '');
       setContentDelta(parsed.contentDelta || emptyDelta);
+      setScheduledAt(parsed.scheduledAt || '');
       setAutosaveState('restored');
     } catch {
       localStorage.removeItem(autosaveKey);
@@ -127,6 +130,7 @@ function BlogEditor() {
         tags,
         contentHtml,
         contentDelta,
+        scheduledAt,
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(autosaveKey, JSON.stringify(payload));
@@ -184,7 +188,10 @@ function BlogEditor() {
     }
   };
 
-  const buildPayload = (status) => ({ title, summary, thumbnailUrl, tags, contentHtml, contentDelta, status });
+  const buildPayload = (status) => ({
+    title, summary, thumbnailUrl, tags, contentHtml, contentDelta, status,
+    scheduledAt: status === 'scheduled' ? scheduledAt : null,
+  });
 
   const validateBeforeSave = () => {
     if (!title.trim()) { setError('Title is required.'); return false; }
@@ -195,8 +202,14 @@ function BlogEditor() {
     return true;
   };
 
+  const minScheduleDate = new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16);
+
   const savePost = async (status) => {
     if (!validateBeforeSave()) return;
+    if (status === 'scheduled') {
+      if (!scheduledAt) { setError('Pick a date and time to schedule the post.'); return; }
+      if (new Date(scheduledAt) <= new Date()) { setError('Scheduled time must be in the future.'); return; }
+    }
     setSaving(true);
     setError('');
     try {
@@ -319,6 +332,39 @@ function BlogEditor() {
               >
                 {saving ? 'Saving…' : 'Save Draft'}
               </button>
+            </div>
+
+            {/* Schedule */}
+            <div className="editor-sidebar-card">
+              <p className="editor-sidebar-label">
+                Schedule
+                <span className="editor-sidebar-hint">optional</span>
+              </p>
+              <input
+                type="datetime-local"
+                className="schedule-input"
+                value={scheduledAt}
+                min={minScheduleDate}
+                onChange={(e) => setScheduledAt(e.target.value)}
+              />
+              {scheduledAt && (
+                <>
+                  <button
+                    className="editor-schedule-btn"
+                    onClick={() => savePost('scheduled')}
+                    disabled={saving || uploading}
+                  >
+                    {saving ? 'Scheduling…' : 'Schedule Post'}
+                  </button>
+                  <button
+                    type="button"
+                    className="editor-clear-schedule-btn"
+                    onClick={() => setScheduledAt('')}
+                  >
+                    Clear schedule
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Cover image */}

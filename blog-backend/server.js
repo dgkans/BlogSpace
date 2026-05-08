@@ -23,6 +23,23 @@ const REQUEST_BODY_LIMIT = process.env.REQUEST_BODY_LIMIT || '10mb';
 // Connect to MongoDB
 await connectDB();
 
+// Background job: auto-publish scheduled posts
+const publishScheduledPosts = async () => {
+  try {
+    const result = await Blog.updateMany(
+      { status: 'scheduled', scheduled_at: { $lte: new Date() } },
+      { $set: { status: 'published', published_at: new Date(), scheduled_at: null } }
+    );
+    if (result.modifiedCount > 0) {
+      console.log(`[Scheduler] Auto-published ${result.modifiedCount} post(s)`);
+    }
+  } catch (err) {
+    console.error('[Scheduler] Error:', err.message);
+  }
+};
+publishScheduledPosts();
+setInterval(publishScheduledPosts, 60 * 1000);
+
 // Middleware
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
@@ -46,7 +63,7 @@ const imageUpload = multer({
   },
 });
 
-const BLOG_STATUSES = ['draft', 'published'];
+const BLOG_STATUSES = ['draft', 'published', 'scheduled'];
 
 const sanitizeBlogPayload = (body = {}) => {
   const title = (body.title || '').trim();
@@ -58,8 +75,9 @@ const sanitizeBlogPayload = (body = {}) => {
   const tags = Array.isArray(body.tags)
     ? body.tags.map((t) => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 5)
     : [];
+  const scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null;
 
-  return { title, summary, contentHtml, contentDelta, status, thumbnailUrl, tags };
+  return { title, summary, contentHtml, contentDelta, status, thumbnailUrl, tags, scheduledAt };
 };
 
 const formatBlog = (blog) => ({
@@ -73,6 +91,7 @@ const formatBlog = (blog) => ({
   tags: blog.tags ?? [],
   status: blog.status,
   publishedAt: blog.published_at,
+  scheduledAt: blog.scheduled_at,
   createdAt: blog.created_at,
   updatedAt: blog.updated_at,
 });
@@ -805,6 +824,15 @@ app.post('/api/blogs', verifyToken, async (req, res) => {
   }
 
   try {
+    if (payload.status === 'scheduled') {
+      if (!payload.scheduledAt || isNaN(payload.scheduledAt)) {
+        return res.status(400).json({ message: 'A valid scheduled date is required' });
+      }
+      if (payload.scheduledAt <= new Date()) {
+        return res.status(400).json({ message: 'Scheduled time must be in the future' });
+      }
+    }
+
     const blog = new Blog({
       author: req.user.userId,
       title: payload.title,
@@ -815,6 +843,7 @@ app.post('/api/blogs', verifyToken, async (req, res) => {
       tags: payload.tags,
       status: payload.status,
       published_at: payload.status === 'published' ? new Date() : null,
+      scheduled_at: payload.status === 'scheduled' ? payload.scheduledAt : null,
     });
 
     await blog.save();
@@ -929,22 +958,33 @@ app.put('/api/blogs/:blogId', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
+    if (payload.status === 'scheduled') {
+      if (!payload.scheduledAt || isNaN(payload.scheduledAt)) {
+        return res.status(400).json({ message: 'A valid scheduled date is required' });
+      }
+      if (payload.scheduledAt <= new Date()) {
+        return res.status(400).json({ message: 'Scheduled time must be in the future' });
+      }
+    }
+
     blog.title = payload.title;
     blog.summary = payload.summary;
     blog.content_delta = payload.contentDelta;
     blog.content_html = payload.contentHtml;
     blog.thumbnail_url = payload.thumbnailUrl;
     blog.tags = payload.tags;
-
-    if (payload.status === 'published' && blog.status !== 'published') {
-      blog.published_at = new Date();
-    }
-
-    if (payload.status === 'draft') {
-      blog.published_at = null;
-    }
-
     blog.status = payload.status;
+
+    if (payload.status === 'published') {
+      if (blog.status !== 'published') blog.published_at = new Date();
+      blog.scheduled_at = null;
+    } else if (payload.status === 'scheduled') {
+      blog.scheduled_at = payload.scheduledAt;
+      blog.published_at = null;
+    } else {
+      blog.published_at = null;
+      blog.scheduled_at = null;
+    }
 
     await blog.save();
     res.json({ message: 'Blog updated successfully', blog: formatBlog(blog) });
@@ -973,6 +1013,23 @@ app.post('/api/blogs/:blogId/publish', verifyToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error publishing blog' });
+  }
+});
+
+app.post('/api/blogs/:blogId/unschedule', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.blogId);
+    if (!blog) return res.status(404).json({ message: 'Blog not found' });
+    if (String(blog.author) !== req.user.userId) return res.status(403).json({ message: 'Unauthorized' });
+    if (blog.status !== 'scheduled') return res.status(400).json({ message: 'Blog is not scheduled' });
+
+    blog.status = 'draft';
+    blog.scheduled_at = null;
+    await blog.save();
+    res.json({ message: 'Blog unscheduled', blog: formatBlog(blog) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error unscheduling blog' });
   }
 });
 

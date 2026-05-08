@@ -53,43 +53,49 @@ function BlogList() {
     }
   };
 
+  const handleUnschedule = async (blogId) => {
+    try {
+      const data = await blogApi.unschedule(token, blogId);
+      setBlogs((prev) =>
+        prev.map((blog) =>
+          blog.id === blogId
+            ? { ...blog, status: data.blog.status, scheduledAt: null }
+            : blog
+        )
+      );
+    } catch (err) {
+      setError(err.message || 'Failed to unschedule blog');
+    }
+  };
+
   const drafts = blogs.filter((b) => b.status === 'draft');
   const published = blogs.filter((b) => b.status === 'published');
+  const scheduled = blogs.filter((b) => b.status === 'scheduled');
 
   const filteredBlogs = useMemo(() => {
     const normalizedTag = tagFilter.trim().toLowerCase();
 
-    const byStatusAndTag = blogs.filter((blog) => {
-      if (statusFilter !== 'all' && blog.status !== statusFilter) {
-        return false;
-      }
-
+    const filtered = blogs.filter((blog) => {
+      if (statusFilter !== 'all' && blog.status !== statusFilter) return false;
       if (!normalizedTag) return true;
       const tags = Array.isArray(blog.tags) ? blog.tags : [];
       return tags.some((t) => String(t).toLowerCase().includes(normalizedTag));
     });
 
-    const sorted = [...byStatusAndTag].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
       const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
-
-      if (sort === 'oldest') {
-        return dateA - dateB;
-      }
-
+      if (sort === 'oldest') return dateA - dateB;
       if (sort === 'mostLiked') {
-        const likeA = a.likeCount ?? 0;
-        const likeB = b.likeCount ?? 0;
-        if (likeB !== likeA) return likeB - likeA;
-        return dateB - dateA;
+        const diff = (b.likeCount ?? 0) - (a.likeCount ?? 0);
+        return diff !== 0 ? diff : dateB - dateA;
       }
-
-      // Default: newest first
       return dateB - dateA;
     });
-
-    return sorted;
   }, [blogs, statusFilter, tagFilter, sort]);
+
+  const fmtDate = (val, opts = {}) =>
+    val ? new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', ...opts }) : '';
 
   if (loading) {
     return (
@@ -115,18 +121,21 @@ function BlogList() {
             <div>
               <h2 className="my-post-title">{blog.title || 'Untitled'}</h2>
               <p className="my-post-meta">
-                Updated {new Date(blog.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                Updated {fmtDate(blog.updatedAt)}
                 {blog.status === 'published' && blog.publishedAt && (
-                  <> · Published {new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>
+                  <> · Published {fmtDate(blog.publishedAt)}</>
+                )}
+                {blog.status === 'scheduled' && blog.scheduledAt && (
+                  <> · Publishes {fmtDate(blog.scheduledAt, { hour: '2-digit', minute: '2-digit' })}</>
                 )}
               </p>
             </div>
-            <span className={`status-badge status-${blog.status}`}>{blog.status}</span>
+            <span className={`status-badge status-${blog.status}`}>
+              {blog.status === 'scheduled' ? '⏰ scheduled' : blog.status}
+            </span>
           </div>
 
-          {blog.summary && (
-            <p className="my-post-summary">{blog.summary}</p>
-          )}
+          {blog.summary && <p className="my-post-summary">{blog.summary}</p>}
 
           {blog.tags?.length > 0 && (
             <div className="blog-list-tags">
@@ -140,6 +149,11 @@ function BlogList() {
             {blog.status === 'draft' && (
               <button className="btn-link publish-btn" onClick={() => handlePublish(blog.id)}>
                 Publish
+              </button>
+            )}
+            {blog.status === 'scheduled' && (
+              <button className="btn-link unschedule-btn" onClick={() => handleUnschedule(blog.id)}>
+                Unschedule
               </button>
             )}
             {blog.status === 'published' && (
@@ -163,23 +177,21 @@ function BlogList() {
           <h1>My Blog Posts</h1>
           <div className="my-posts-stats">
             <span className="stat-pill stat-published">{published.length} published</span>
+            {scheduled.length > 0 && (
+              <span className="stat-pill stat-scheduled">{scheduled.length} scheduled</span>
+            )}
             <span className="stat-pill stat-draft">{drafts.length} draft{drafts.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
         <div className="editor-header-actions">
           <div className="home-published-controls" aria-label="Blog filters">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="all">All statuses</option>
               <option value="published">Published</option>
+              <option value="scheduled">Scheduled</option>
               <option value="draft">Drafts</option>
             </select>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-            >
+            <select value={sort} onChange={(e) => setSort(e.target.value)}>
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
               <option value="mostLiked">Most liked</option>
@@ -199,69 +211,18 @@ function BlogList() {
 
       {filteredBlogs.length === 0 ? (
         <section className="blog-empty-state">
-          <div className="empty-icon-svg"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></div>
+          <div className="empty-icon-svg">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+            </svg>
+          </div>
           <h2>No blog posts yet</h2>
           <p>Create your first post and save it as a draft or publish directly.</p>
           <Link to="/blogs/new" className="btn-primary">Create First Post</Link>
         </section>
       ) : (
         <div className="my-posts-list">
-          {filteredBlogs.map((blog) => (
-            <article className="my-post-card" key={blog.id}>
-              <div className="my-post-card-inner">
-                {/* Thumbnail */}
-                {blog.thumbnailUrl && (
-                  <div className="my-post-thumb">
-                    <img src={blog.thumbnailUrl} alt={blog.title} />
-                  </div>
-                )}
-
-                {/* Body */}
-                <div className="my-post-body">
-                  <div className="my-post-head">
-                    <div>
-                      <h2 className="my-post-title">{blog.title || 'Untitled'}</h2>
-                      <p className="my-post-meta">
-                        Updated {new Date(blog.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        {blog.status === 'published' && blog.publishedAt && (
-                          <> · Published {new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>
-                        )}
-                      </p>
-                    </div>
-                    <span className={`status-badge status-${blog.status}`}>{blog.status}</span>
-                  </div>
-
-                  {blog.summary && (
-                    <p className="my-post-summary">{blog.summary}</p>
-                  )}
-
-                  {blog.tags?.length > 0 && (
-                    <div className="blog-list-tags">
-                      {blog.tags.map((tag) => <span key={tag} className="tag-chip">{tag}</span>)}
-                    </div>
-                  )}
-
-                  <div className="my-post-actions">
-                    <Link to={`/blogs/${blog.id}`} className="btn-link">View</Link>
-                    <Link to={`/blogs/${blog.id}/edit`} className="btn-link">Edit</Link>
-                    {blog.status === 'draft' && (
-                      <button className="btn-link publish-btn" onClick={() => handlePublish(blog.id)}>
-                        Publish
-                      </button>
-                    )}
-                    {blog.status === 'published' && (
-                      <Link to={`/blogs/public/${blog.id}`} className="btn-link" target="_blank" rel="noopener noreferrer">
-                        Public View ↗
-                      </Link>
-                    )}
-                    <button className="btn-link danger" onClick={() => handleDelete(blog.id)}>
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))}
+          {filteredBlogs.map(renderCard)}
         </div>
       )}
     </main>

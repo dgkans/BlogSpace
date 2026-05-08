@@ -55,6 +55,14 @@ export const blogApi = {
     return parseJson(response);
   },
 
+  unschedule: async (token, blogId) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/${blogId}/unschedule`, {
+      method: 'POST',
+      headers: authHeaders(token),
+    });
+    return parseJson(response);
+  },
+
   remove: async (token, blogId) => {
     const response = await fetch(`${API_BASE_URL}/api/blogs/${blogId}`, {
       method: 'DELETE',
