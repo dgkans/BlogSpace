@@ -65,6 +65,9 @@ function BlogDetails() {
         <div className="blog-owner-header-top">
           <Link to="/blogs" className="editor-back-link">← My Posts</Link>
           <div className="blog-owner-actions">
+            {blog.status === 'published' && (
+              <Link to={`/blogs/${blog.id}/analytics`} className="btn-detail-analytics">Analytics</Link>
+            )}
             <Link to={`/blogs/${blog.id}/edit`} className="btn-detail-edit">Edit</Link>
             <button className="btn-detail-delete" onClick={handleDelete}>Delete</button>
           </div>
@@ -113,6 +116,9 @@ function BlogDetails() {
             : `Draft · last saved ${fmt(blog.updatedAt)}`}
         </span>
         <div className="blog-owner-footer-actions">
+          {blog.status === 'published' && (
+            <Link to={`/blogs/${blog.id}/analytics`} className="btn-detail-analytics">Analytics</Link>
+          )}
           <Link to={`/blogs/${blog.id}/edit`} className="btn-detail-edit">Edit Post</Link>
           <button className="btn-detail-delete" onClick={handleDelete}>Delete</button>
         </div>

@@ -1416,6 +1416,28 @@
 }
 
 /* Owner view action buttons */
+.btn-detail-analytics {
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+  border-radius: 7px;
+  padding: 0.42rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btn-detail-analytics:hover {
+  background: #f5f3ff;
+  border-color: #c4b5fd;
+  text-decoration: none;
+}
+
 .btn-detail-edit {
   display: inline-flex;
   align-items: center;

@@ -55,6 +55,13 @@ export const blogApi = {
     return parseJson(response);
   },
 
+  getAnalytics: async (token, blogId) => {
+    const response = await fetch(`${API_BASE_URL}/api/blogs/${blogId}/analytics`, {
+      headers: authHeaders(token),
+    });
+    return parseJson(response);
+  },
+
   unschedule: async (token, blogId) => {
     const response = await fetch(`${API_BASE_URL}/api/blogs/${blogId}/unschedule`, {
       method: 'POST',

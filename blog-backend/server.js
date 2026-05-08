@@ -12,6 +12,7 @@ import BlogLike from './models/BlogLike.js';
 import BlogDislike from './models/BlogDislike.js';
 import BlogComment from './models/BlogComment.js';
 import BlogBookmark from './models/BlogBookmark.js';
+import BlogView from './models/BlogView.js';
 
 dotenv.config();
 
@@ -115,6 +116,18 @@ const formatPublicBlog = (blog) => ({
 });
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const parseReferrer = (refererHeader = '', requestHost = '') => {
+  if (!refererHeader) return 'Direct';
+  try {
+    const url = new URL(refererHeader);
+    const domain = url.hostname.replace(/^www\./, '');
+    if (!domain || (requestHost && domain === requestHost)) return 'Direct';
+    return domain;
+  } catch {
+    return 'Direct';
+  }
+};
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
@@ -539,6 +552,8 @@ app.get('/api/blogs/public/:blogId', optionalAuth, async (req, res) => {
     }
 
     await Blog.findByIdAndUpdate(blog._id, { $inc: { view_count: 1 } });
+    const referrer = parseReferrer(req.headers.referer || req.headers.referrer || '', req.hostname);
+    BlogView.create({ blog: blog._id, referrer }).catch(() => {});
 
     const likeCount = await BlogLike.countDocuments({ blog: blog._id });
     const dislikeCount = await BlogDislike.countDocuments({ blog: blog._id });
@@ -1016,6 +1031,55 @@ app.post('/api/blogs/:blogId/publish', verifyToken, async (req, res) => {
   }
 });
 
+app.get('/api/blogs/:blogId/analytics', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.blogId).select('author title view_count');
+    if (!blog) return res.status(404).json({ message: 'Blog not found' });
+    if (String(blog.author) !== req.user.userId) return res.status(403).json({ message: 'Unauthorized' });
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [viewsByDay, likesByDay, totalLikes, totalDislikes, totalComments, topReferrers] =
+      await Promise.all([
+        BlogView.aggregate([
+          { $match: { blog: blog._id, viewed_at: { $gte: thirtyDaysAgo } } },
+          { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$viewed_at' } }, count: { $sum: 1 } } },
+          { $sort: { _id: 1 } },
+        ]),
+        BlogLike.aggregate([
+          { $match: { blog: blog._id, created_at: { $gte: thirtyDaysAgo } } },
+          { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: { $toDate: '$_id' } } }, count: { $sum: 1 } } },
+          { $sort: { _id: 1 } },
+        ]),
+        BlogLike.countDocuments({ blog: blog._id }),
+        BlogDislike.countDocuments({ blog: blog._id }),
+        BlogComment.countDocuments({ blog: blog._id }),
+        BlogView.aggregate([
+          { $match: { blog: blog._id } },
+          { $group: { _id: '$referrer', count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 8 },
+        ]),
+      ]);
+
+    res.json({
+      analytics: {
+        title: blog.title,
+        totalViews: blog.view_count ?? 0,
+        totalLikes,
+        totalDislikes,
+        totalComments,
+        viewsByDay: viewsByDay.map((d) => ({ date: d._id, count: d.count })),
+        likesByDay: likesByDay.map((d) => ({ date: d._id, count: d.count })),
+        topReferrers: topReferrers.map((r) => ({ source: r._id || 'Direct', count: r.count })),
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching analytics' });
+  }
+});
+
 app.post('/api/blogs/:blogId/unschedule', verifyToken, async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.blogId);
@@ -1044,10 +1108,13 @@ app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    await BlogLike.deleteMany({ blog: req.params.blogId });
-    await BlogDislike.deleteMany({ blog: req.params.blogId });
-    await BlogBookmark.deleteMany({ blog: req.params.blogId });
-    await BlogComment.deleteMany({ blog: req.params.blogId });
+    await Promise.all([
+      BlogLike.deleteMany({ blog: req.params.blogId }),
+      BlogDislike.deleteMany({ blog: req.params.blogId }),
+      BlogBookmark.deleteMany({ blog: req.params.blogId }),
+      BlogComment.deleteMany({ blog: req.params.blogId }),
+      BlogView.deleteMany({ blog: req.params.blogId }),
+    ]);
     await Blog.findByIdAndDelete(req.params.blogId);
     res.json({ message: 'Blog deleted successfully' });
   } catch (err) {
