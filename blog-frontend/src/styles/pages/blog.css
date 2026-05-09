@@ -431,6 +431,27 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-copy-post-url {
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent-soft-border);
+  background: var(--accent-soft-bg);
+  color: var(--accent);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.btn-copy-post-url:hover {
+  background: var(--accent-soft-bg-hover);
+  border-color: var(--accent-hover);
+  color: var(--accent-hover);
 }
 
 /* ── Blog list grid (legacy) ── */
