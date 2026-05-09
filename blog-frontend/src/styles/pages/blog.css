@@ -1266,14 +1266,14 @@
 .my-post-title {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-1);
   line-height: 1.35;
   margin: 0;
 }
 
 .my-post-meta {
   font-size: 0.8rem;
-  color: #9ca3af;
+  color: var(--text-4);
   margin: 0.15rem 0 0;
 }
 
