@@ -14,6 +14,7 @@ import BlogEditor from './pages/BlogEditor';
 import BlogDetails from './pages/BlogDetails';
 import PublicBlogDetails from './pages/PublicBlogDetails';
 import SavedPosts from './pages/SavedPosts';
+import BlogAnalytics from './pages/BlogAnalytics';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
@@ -132,6 +133,14 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <BlogEditor />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/blogs/:blogId/analytics"
+          element={
+            <ProtectedRoute>
+              <BlogAnalytics />
             </ProtectedRoute>
           }
         />
