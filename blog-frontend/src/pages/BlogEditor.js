@@ -8,6 +8,14 @@ import { blogApi } from '../utils/blogApi';
 const emptyDelta = { ops: [] };
 const AUTOSAVE_WAIT_MS = 2000;
 
+/** `datetime-local` values are local wall time; never use toISOString().slice(0,16) (that is UTC and shifts the calendar day). */
+const toDatetimeLocalValue = (date) => {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 const getAutosaveKey = ({ blogId, isEditMode, token }) => {
   if (!token) return null;
   const tokenPart = token.slice(0, 12);
@@ -79,7 +87,7 @@ function BlogEditor() {
         setTags(data.blog.tags || []);
         setContentHtml(data.blog.contentHtml || '');
         setContentDelta(data.blog.contentDelta || emptyDelta);
-        setScheduledAt(data.blog.scheduledAt ? new Date(data.blog.scheduledAt).toISOString().slice(0, 16) : '');
+        setScheduledAt(data.blog.scheduledAt ? toDatetimeLocalValue(new Date(data.blog.scheduledAt)) : '');
       } catch (err) {
         setError(err.message || 'Failed to load blog for editing');
       } finally {
@@ -138,7 +146,7 @@ function BlogEditor() {
     }, AUTOSAVE_WAIT_MS);
 
     return () => clearTimeout(timer);
-  }, [autosaveKey, loading, title, summary, thumbnailUrl, tags, contentHtml, contentDelta]);
+  }, [autosaveKey, loading, title, summary, thumbnailUrl, tags, contentHtml, contentDelta, scheduledAt]);
 
   const handleImageFile = useCallback(async (file) => {
     if (!file) return;
@@ -189,8 +197,17 @@ function BlogEditor() {
   };
 
   const buildPayload = (status) => ({
-    title, summary, thumbnailUrl, tags, contentHtml, contentDelta, status,
-    scheduledAt: status === 'scheduled' ? scheduledAt : null,
+    title,
+    summary,
+    thumbnailUrl,
+    tags,
+    contentHtml,
+    contentDelta,
+    status,
+    scheduledAt:
+      status === 'scheduled' && scheduledAt
+        ? new Date(scheduledAt).toISOString()
+        : null,
   });
 
   const validateBeforeSave = () => {
@@ -202,7 +219,7 @@ function BlogEditor() {
     return true;
   };
 
-  const minScheduleDate = new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16);
+  const minScheduleDate = toDatetimeLocalValue(new Date(Date.now() + 60 * 1000));
 
   const savePost = async (status) => {
     if (!validateBeforeSave()) return;
