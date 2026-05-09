@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { blogApi } from '../utils/blogApi';
 import { useAuth } from '../context/AuthContext';
@@ -29,6 +29,14 @@ function PublicBlogDetails() {
   const [editingCommentId, setEditingCommentId] = useState('');
   const [editingText, setEditingText] = useState('');
   const [editingBusy, setEditingBusy] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState('');
+  const copyResetRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyResetRef.current) clearTimeout(copyResetRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const loadBlogAndComments = async () => {
@@ -198,6 +206,35 @@ function PublicBlogDetails() {
     return new Date(comment.updatedAt).getTime() > new Date(comment.createdAt).getTime();
   };
 
+  const postPublicUrl = `${window.location.origin}/blogs/public/${blogId}`;
+
+  const copyPostUrl = async () => {
+    if (copyResetRef.current) clearTimeout(copyResetRef.current);
+    const write = async () => {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(postPublicUrl);
+        return;
+      }
+      const ta = document.createElement('textarea');
+      ta.value = postPublicUrl;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (!ok) throw new Error('copy failed');
+    };
+    try {
+      await write();
+      setCopyFeedback('Copied!');
+    } catch {
+      setCopyFeedback('Could not copy');
+    }
+    copyResetRef.current = setTimeout(() => setCopyFeedback(''), 2200);
+  };
+
   if (loading) {
     return (
       <main className="page-content blog-page">
@@ -246,6 +283,14 @@ function PublicBlogDetails() {
             </div>
           </div>
           <div className="blog-detail-actions">
+            <button
+              type="button"
+              className="btn-copy-post-url"
+              onClick={copyPostUrl}
+              aria-label="Copy link to this post"
+            >
+              {copyFeedback || 'Copy link'}
+            </button>
             <Link to="/" className="btn-link">← Back to Home</Link>
           </div>
         </section>
