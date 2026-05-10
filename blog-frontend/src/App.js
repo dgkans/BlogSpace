@@ -35,7 +35,7 @@ function AppContent() {
     <div className="App">
       <header className="App-header">
         <nav className="nav">
-          <NavLink to="/" className="logo">Blogspace</NavLink>
+          <NavLink to="/" className="logo">BlogSpace</NavLink>
           <div className="nav-links">
             <NavLink to="/contact" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Contact</NavLink>
             <NavLink to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>About</NavLink>

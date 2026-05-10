@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-const STORAGE_KEY = 'blogspace-theme';
+const STORAGE_KEY = 'blogSpace-theme';
 
 function readStoredTheme() {
   if (typeof window === 'undefined') return 'light';

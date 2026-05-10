@@ -37,7 +37,7 @@ function AboutUs() {
           <div className="about-hero-badge">Our Story</div>
           <h1>Built by writers,<br /><span className="about-hero-accent">for writers.</span></h1>
           <p>
-            Blogspace started as a passion project among three developers who wanted
+            BlogSpace started as a passion project among three developers who wanted
             a platform that's powerful yet simple — where ideas take centre stage.
           </p>
         </div>
@@ -51,7 +51,7 @@ function AboutUs() {
             <div className="about-mv-icon">🚀</div>
             <h2>Our Mission</h2>
             <p>
-              We believe everyone has a story to tell. Blogspace is dedicated to providing
+              We believe everyone has a story to tell. BlogSpace is dedicated to providing
               a modern, user-friendly platform where writers, creators, and thinkers can
               share their ideas freely — without the complexity.
             </p>
