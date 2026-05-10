@@ -69,71 +69,78 @@ function SavedPosts() {
 
   return (
     <main className="page-content blog-page">
-      <section className="blog-list-header">
+      {/* Header */}
+      <section className="saved-posts-header">
         <div>
-          <h1>Saved posts</h1>
-          <p>
-            {blogs.length === 0
-              ? 'Posts you bookmark from the home feed or article pages appear here.'
-              : `${blogs.length} saved post${blogs.length === 1 ? '' : 's'}`}
-          </p>
+          <h1>Saved Posts</h1>
+          <div className="my-posts-stats">
+            {blogs.length > 0 ? (
+              <span className="stat-pill stat-saved">
+                {blogs.length} saved post{blogs.length !== 1 ? 's' : ''}
+              </span>
+            ) : (
+              <span className="stat-pill stat-draft">Nothing saved yet</span>
+            )}
+          </div>
         </div>
-        <Link to="/" className="btn-link">← Browse stories</Link>
+        <Link to="/" className="btn-browse-link">← Browse stories</Link>
       </section>
 
       {error && <p className="home-published-error">{error}</p>}
 
       {!loading && blogs.length === 0 && !error && (
-        <div className="home-published-empty">
-          <div className="empty-icon">🔖</div>
+        <div className="saved-posts-empty">
+          <div className="saved-posts-empty-icon">🔖</div>
           <h3>No saved posts yet</h3>
-          <p>Open a published story and tap Save to keep it on this list.</p>
-          <Link to="/" className="cta-button primary" style={{ marginTop: '1rem', display: 'inline-block' }}>
-            Go to home
+          <p>Open a published story and tap the bookmark button to save it here.</p>
+          <Link to="/" className="btn-new-post" style={{ marginTop: '1rem', display: 'inline-flex' }}>
+            Browse stories
           </Link>
         </div>
       )}
 
-      <div className="home-published-grid">
-        {blogs.map((blog) => (
-          <article key={blog.id} className="home-published-card">
-            {blog.thumbnailUrl && (
-              <div className="card-thumbnail">
-                <img src={blog.thumbnailUrl} alt={blog.title} />
+      {blogs.length > 0 && (
+        <div className="home-published-grid">
+          {blogs.map((blog) => (
+            <article key={blog.id} className="home-published-card">
+              {blog.thumbnailUrl && (
+                <div className="card-thumbnail">
+                  <img src={blog.thumbnailUrl} alt={blog.title} />
+                </div>
+              )}
+              {!blog.thumbnailUrl && <div className="card-top-bar" />}
+              <div className="card-body">
+                <div className="home-published-meta">
+                  <span className="meta-author">
+                    <span className="author-avatar">{(blog.author?.fullName || 'U')[0].toUpperCase()}</span>
+                    {blog.author?.fullName || 'Unknown Author'}
+                  </span>
+                  <span className="meta-right">
+                    <span>{estimateReadTime(blog)} min read</span>
+                    <span className="meta-dot">·</span>
+                    <span>{formatDate(blog.publishedAt)}</span>
+                  </span>
+                </div>
+                <h3 className="card-title">{blog.title}</h3>
+                <p className="card-summary">{blog.summary || 'No summary provided.'}</p>
+                <div className="home-published-card-footer">
+                  <button
+                    type="button"
+                    className="home-bookmark-btn on"
+                    disabled={busyId === blog.id}
+                    onClick={() => onRemoveBookmark(blog)}
+                  >
+                    {busyId === blog.id ? '…' : '★ Saved'}
+                  </button>
+                  <Link to={`/blogs/public/${blog.id}`} className="card-read-link">
+                    Read →
+                  </Link>
+                </div>
               </div>
-            )}
-            {!blog.thumbnailUrl && <div className="card-top-bar" />}
-            <div className="card-body">
-              <div className="home-published-meta">
-                <span className="meta-author">
-                  <span className="author-avatar">{(blog.author?.fullName || 'U')[0].toUpperCase()}</span>
-                  {blog.author?.fullName || 'Unknown Author'}
-                </span>
-                <span className="meta-right">
-                  <span>{estimateReadTime(blog)} min read</span>
-                  <span className="meta-dot">·</span>
-                  <span>{formatDate(blog.publishedAt)}</span>
-                </span>
-              </div>
-              <h3 className="card-title">{blog.title}</h3>
-              <p className="card-summary">{blog.summary || 'No summary provided.'}</p>
-              <div className="home-published-card-footer">
-                <button
-                  type="button"
-                  className="home-bookmark-btn on"
-                  disabled={busyId === blog.id}
-                  onClick={() => onRemoveBookmark(blog)}
-                >
-                  {busyId === blog.id ? '…' : '★ Saved'}
-                </button>
-                <Link to={`/blogs/public/${blog.id}`} className="card-read-link">
-                  Read →
-                </Link>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
+            </article>
+          ))}
+        </div>
+      )}
     </main>
   );
 }

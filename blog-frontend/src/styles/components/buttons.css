@@ -1,9 +1,8 @@
-.btn-logout,
 .btn-primary,
 .btn-danger {
   padding: 0.5rem 1rem;
-  background-color: #333;
-  color: #fff;
+  background-color: var(--btn-solid-bg);
+  color: var(--btn-solid-fg);
   border: none;
   border-radius: 4px;
   font-weight: 500;
@@ -12,9 +11,8 @@
   transition: background-color 0.2s;
 }
 
-.btn-logout:hover,
 .btn-primary:hover {
-  background-color: #555;
+  background-color: var(--btn-solid-bg-hover);
 }
 
 .btn-danger {
@@ -27,8 +25,8 @@
 
 .btn-submit {
   padding: 0.75rem;
-  background-color: #333;
-  color: #fff;
+  background-color: var(--btn-solid-bg);
+  color: var(--btn-solid-fg);
   border: none;
   border-radius: 4px;
   font-size: 0.9rem;
@@ -38,7 +36,7 @@
 }
 
 .btn-submit:hover:not(:disabled) {
-  background-color: #555;
+  background-color: var(--btn-solid-bg-hover);
 }
 
 .btn-submit:disabled {
@@ -48,7 +46,7 @@
 
 /* Generic link-style button — overridden in blog.css for the page-specific variant */
 .btn-link {
-  color: #333;
+  color: var(--text-0);
   text-decoration: none;
   font-weight: 600;
 }
@@ -79,14 +77,14 @@
 }
 
 .cta-button.primary {
-  background: #2563eb;
+  background: var(--accent);
   color: #fff;
-  border-color: #2563eb;
+  border-color: var(--accent);
 }
 
 .cta-button.primary:hover {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
@@ -117,16 +115,16 @@
 }
 
 .badge.draft {
-  background: #f0f0f0;
-  color: #444;
+  background: var(--badge-draft-bg);
+  color: var(--badge-draft-fg);
 }
 
 .badge.published {
-  background: #e6f4ea;
-  color: #137333;
+  background: var(--badge-published-bg);
+  color: var(--badge-published-fg);
 }
 
 .badge.archived {
-  background: #f5f5f5;
-  color: #666;
+  background: var(--surface-3);
+  color: var(--text-3);
 }

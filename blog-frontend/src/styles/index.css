@@ -1,3 +1,6 @@
+/* Theme tokens (light default; dark via html[data-theme="dark"]) */
+@import './theme.css';
+
 /* Base */
 @import './base/reset.css';
 
@@ -15,6 +18,7 @@
 @import './pages/contact.css';
 @import './pages/profile.css';
 @import './pages/blog.css';
+@import './pages/analytics.css';
 
 /* Responsive overrides — must come last */
 @import './responsive.css';

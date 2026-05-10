@@ -12,6 +12,7 @@ import BlogLike from './models/BlogLike.js';
 import BlogDislike from './models/BlogDislike.js';
 import BlogComment from './models/BlogComment.js';
 import BlogBookmark from './models/BlogBookmark.js';
+import BlogView from './models/BlogView.js';
 
 dotenv.config();
 
@@ -22,6 +23,23 @@ const REQUEST_BODY_LIMIT = process.env.REQUEST_BODY_LIMIT || '10mb';
 
 // Connect to MongoDB
 await connectDB();
+
+// Background job: auto-publish scheduled posts
+const publishScheduledPosts = async () => {
+  try {
+    const result = await Blog.updateMany(
+      { status: 'scheduled', scheduled_at: { $lte: new Date() } },
+      { $set: { status: 'published', published_at: new Date(), scheduled_at: null } }
+    );
+    if (result.modifiedCount > 0) {
+      console.log(`[Scheduler] Auto-published ${result.modifiedCount} post(s)`);
+    }
+  } catch (err) {
+    console.error('[Scheduler] Error:', err.message);
+  }
+};
+publishScheduledPosts();
+setInterval(publishScheduledPosts, 60 * 1000);
 
 // Middleware
 app.use(cors({
@@ -46,7 +64,7 @@ const imageUpload = multer({
   },
 });
 
-const BLOG_STATUSES = ['draft', 'published'];
+const BLOG_STATUSES = ['draft', 'published', 'scheduled'];
 
 const sanitizeBlogPayload = (body = {}) => {
   const title = (body.title || '').trim();
@@ -58,8 +76,9 @@ const sanitizeBlogPayload = (body = {}) => {
   const tags = Array.isArray(body.tags)
     ? body.tags.map((t) => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 5)
     : [];
+  const scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null;
 
-  return { title, summary, contentHtml, contentDelta, status, thumbnailUrl, tags };
+  return { title, summary, contentHtml, contentDelta, status, thumbnailUrl, tags, scheduledAt };
 };
 
 const formatBlog = (blog) => ({
@@ -73,6 +92,7 @@ const formatBlog = (blog) => ({
   tags: blog.tags ?? [],
   status: blog.status,
   publishedAt: blog.published_at,
+  scheduledAt: blog.scheduled_at,
   createdAt: blog.created_at,
   updatedAt: blog.updated_at,
 });
@@ -96,6 +116,18 @@ const formatPublicBlog = (blog) => ({
 });
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const parseReferrer = (refererHeader = '', requestHost = '') => {
+  if (!refererHeader) return 'Direct';
+  try {
+    const url = new URL(refererHeader);
+    const domain = url.hostname.replace(/^www\./, '');
+    if (!domain || (requestHost && domain === requestHost)) return 'Direct';
+    return domain;
+  } catch {
+    return 'Direct';
+  }
+};
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
@@ -483,7 +515,23 @@ app.get('/api/blogs/public', optionalAuth, async (req, res) => {
       )
     );
 
-    res.json({ blogs: payload });
+    let result = payload;
+
+    // For "most liked" we sort in-memory by likeCount while keeping
+    // a reasonable published/created-at tiebreaker.
+    if (sort === 'likes' || sort === 'mostLiked') {
+      result = [...payload].sort((a, b) => {
+        const likeA = a.likeCount ?? 0;
+        const likeB = b.likeCount ?? 0;
+        if (likeB !== likeA) return likeB - likeA;
+
+        const dateA = new Date(a.publishedAt || a.createdAt || 0).getTime();
+        const dateB = new Date(b.publishedAt || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+    }
+
+    res.json({ blogs: result });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching published blogs' });
@@ -504,6 +552,8 @@ app.get('/api/blogs/public/:blogId', optionalAuth, async (req, res) => {
     }
 
     await Blog.findByIdAndUpdate(blog._id, { $inc: { view_count: 1 } });
+    const referrer = parseReferrer(req.headers.referer || req.headers.referrer || '', req.hostname);
+    BlogView.create({ blog: blog._id, referrer }).catch(() => {});
 
     const likeCount = await BlogLike.countDocuments({ blog: blog._id });
     const dislikeCount = await BlogDislike.countDocuments({ blog: blog._id });
@@ -789,6 +839,15 @@ app.post('/api/blogs', verifyToken, async (req, res) => {
   }
 
   try {
+    if (payload.status === 'scheduled') {
+      if (!payload.scheduledAt || isNaN(payload.scheduledAt)) {
+        return res.status(400).json({ message: 'A valid scheduled date is required' });
+      }
+      if (payload.scheduledAt <= new Date()) {
+        return res.status(400).json({ message: 'Scheduled time must be in the future' });
+      }
+    }
+
     const blog = new Blog({
       author: req.user.userId,
       title: payload.title,
@@ -799,6 +858,7 @@ app.post('/api/blogs', verifyToken, async (req, res) => {
       tags: payload.tags,
       status: payload.status,
       published_at: payload.status === 'published' ? new Date() : null,
+      scheduled_at: payload.status === 'scheduled' ? payload.scheduledAt : null,
     });
 
     await blog.save();
@@ -819,7 +879,18 @@ app.get('/api/blogs', verifyToken, async (req, res) => {
 
   try {
     const blogs = await Blog.find(filter).sort({ updated_at: -1 });
-    res.json({ blogs: blogs.map(formatBlog) });
+    const ids = blogs.map((b) => b._id);
+    const likeMap = await likeCountsForBlogs(ids);
+
+    res.json({
+      blogs: blogs.map((blog) => {
+        const base = formatBlog(blog);
+        return {
+          ...base,
+          likeCount: likeMap.get(String(blog._id)) || 0,
+        };
+      }),
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error fetching blogs' });
@@ -902,22 +973,33 @@ app.put('/api/blogs/:blogId', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
+    if (payload.status === 'scheduled') {
+      if (!payload.scheduledAt || isNaN(payload.scheduledAt)) {
+        return res.status(400).json({ message: 'A valid scheduled date is required' });
+      }
+      if (payload.scheduledAt <= new Date()) {
+        return res.status(400).json({ message: 'Scheduled time must be in the future' });
+      }
+    }
+
     blog.title = payload.title;
     blog.summary = payload.summary;
     blog.content_delta = payload.contentDelta;
     blog.content_html = payload.contentHtml;
     blog.thumbnail_url = payload.thumbnailUrl;
     blog.tags = payload.tags;
-
-    if (payload.status === 'published' && blog.status !== 'published') {
-      blog.published_at = new Date();
-    }
-
-    if (payload.status === 'draft') {
-      blog.published_at = null;
-    }
-
     blog.status = payload.status;
+
+    if (payload.status === 'published') {
+      if (blog.status !== 'published') blog.published_at = new Date();
+      blog.scheduled_at = null;
+    } else if (payload.status === 'scheduled') {
+      blog.scheduled_at = payload.scheduledAt;
+      blog.published_at = null;
+    } else {
+      blog.published_at = null;
+      blog.scheduled_at = null;
+    }
 
     await blog.save();
     res.json({ message: 'Blog updated successfully', blog: formatBlog(blog) });
@@ -949,6 +1031,72 @@ app.post('/api/blogs/:blogId/publish', verifyToken, async (req, res) => {
   }
 });
 
+app.get('/api/blogs/:blogId/analytics', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.blogId).select('author title view_count');
+    if (!blog) return res.status(404).json({ message: 'Blog not found' });
+    if (String(blog.author) !== req.user.userId) return res.status(403).json({ message: 'Unauthorized' });
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [viewsByDay, likesByDay, totalLikes, totalDislikes, totalComments, topReferrers] =
+      await Promise.all([
+        BlogView.aggregate([
+          { $match: { blog: blog._id, viewed_at: { $gte: thirtyDaysAgo } } },
+          { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$viewed_at' } }, count: { $sum: 1 } } },
+          { $sort: { _id: 1 } },
+        ]),
+        BlogLike.aggregate([
+          { $match: { blog: blog._id, created_at: { $gte: thirtyDaysAgo } } },
+          { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: { $toDate: '$_id' } } }, count: { $sum: 1 } } },
+          { $sort: { _id: 1 } },
+        ]),
+        BlogLike.countDocuments({ blog: blog._id }),
+        BlogDislike.countDocuments({ blog: blog._id }),
+        BlogComment.countDocuments({ blog: blog._id }),
+        BlogView.aggregate([
+          { $match: { blog: blog._id } },
+          { $group: { _id: '$referrer', count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 8 },
+        ]),
+      ]);
+
+    res.json({
+      analytics: {
+        title: blog.title,
+        totalViews: blog.view_count ?? 0,
+        totalLikes,
+        totalDislikes,
+        totalComments,
+        viewsByDay: viewsByDay.map((d) => ({ date: d._id, count: d.count })),
+        likesByDay: likesByDay.map((d) => ({ date: d._id, count: d.count })),
+        topReferrers: topReferrers.map((r) => ({ source: r._id || 'Direct', count: r.count })),
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error fetching analytics' });
+  }
+});
+
+app.post('/api/blogs/:blogId/unschedule', verifyToken, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.blogId);
+    if (!blog) return res.status(404).json({ message: 'Blog not found' });
+    if (String(blog.author) !== req.user.userId) return res.status(403).json({ message: 'Unauthorized' });
+    if (blog.status !== 'scheduled') return res.status(400).json({ message: 'Blog is not scheduled' });
+
+    blog.status = 'draft';
+    blog.scheduled_at = null;
+    await blog.save();
+    res.json({ message: 'Blog unscheduled', blog: formatBlog(blog) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error unscheduling blog' });
+  }
+});
+
 app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.blogId);
@@ -960,10 +1108,13 @@ app.delete('/api/blogs/:blogId', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    await BlogLike.deleteMany({ blog: req.params.blogId });
-    await BlogDislike.deleteMany({ blog: req.params.blogId });
-    await BlogBookmark.deleteMany({ blog: req.params.blogId });
-    await BlogComment.deleteMany({ blog: req.params.blogId });
+    await Promise.all([
+      BlogLike.deleteMany({ blog: req.params.blogId }),
+      BlogDislike.deleteMany({ blog: req.params.blogId }),
+      BlogBookmark.deleteMany({ blog: req.params.blogId }),
+      BlogComment.deleteMany({ blog: req.params.blogId }),
+      BlogView.deleteMany({ blog: req.params.blogId }),
+    ]);
     await Blog.findByIdAndDelete(req.params.blogId);
     res.json({ message: 'Blog deleted successfully' });
   } catch (err) {
