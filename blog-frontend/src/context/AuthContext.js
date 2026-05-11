@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 const AuthContext = createContext();
@@ -8,18 +8,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
 
-  // Initialize from localStorage
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-      fetchUser(storedToken);
-    } else {
-      setLoading(false);
-    }
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    document.cookie = 'token=;path=/;max-age=0';
+    setToken(null);
+    setUser(null);
   }, []);
 
-  const fetchUser = async (authToken) => {
+  const fetchUser = useCallback(async (authToken) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: 'GET',
@@ -41,7 +37,18 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [logout]);
+
+  // Initialize from localStorage
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      setToken(storedToken);
+      fetchUser(storedToken);
+    } else {
+      setLoading(false);
+    }
+  }, [fetchUser]);
 
   const login = async (email, password) => {
     setLoading(true);
@@ -109,13 +116,6 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    document.cookie = 'token=;path=/;max-age=0';
-    setToken(null);
-    setUser(null);
   };
 
   const value = {

@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 function Profile() {
   const [profile, setProfile] = useState(null);
@@ -9,14 +11,10 @@ function Profile() {
   const navigate = useNavigate();
   const { user, token, logout } = useAuth();
 
-  useEffect(() => {
-    if (!user) { navigate('/login'); return; }
-    fetchProfile();
-  }, [user, navigate, token]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const response = await fetch(`http://localhost:5001/api/users/${user.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Failed to fetch profile');
@@ -27,12 +25,17 @@ function Profile() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, token]);
+
+  useEffect(() => {
+    if (!user) { navigate('/login'); return; }
+    fetchProfile();
+  }, [user, navigate, fetchProfile]);
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
     try {
-      const response = await fetch(`http://localhost:5001/api/users/${user.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

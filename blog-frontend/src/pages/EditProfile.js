@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 function EditProfile() {
   const [formData, setFormData] = useState({
@@ -14,17 +16,10 @@ function EditProfile() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    fetchProfile();
-  }, [user, navigate, token]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const response = await fetch(`http://localhost:5001/api/users/${user.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -45,7 +40,15 @@ function EditProfile() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, token]);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    fetchProfile();
+  }, [user, navigate, fetchProfile]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -62,7 +65,7 @@ function EditProfile() {
     setSubmitting(true);
 
     try {
-      const response = await fetch(`http://localhost:5001/api/users/${user.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
