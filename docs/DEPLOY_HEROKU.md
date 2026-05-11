@@ -124,7 +124,8 @@ After Vercel gives you a URL, set **`CLIENT_URL`** on Heroku to that exact origi
 
 - **H10 / app crashed:** Check `heroku logs --tail -a your-blogspace-api`. Common causes: missing `MONGODB_URI`, bad Atlas IP allowlist, or `JWT_SECRET` unset.
 - **`querySrv EBADNAME` / MongoDB SRV errors:** The `MONGODB_URI` value is invalid for DNS (wrong host, truncated cluster name, stray characters, or a trailing newline). In Heroku → **Settings → Config Vars**, delete `MONGODB_URI` and paste again from Atlas (**Database → Connect → Drivers → Node**). The host must look like `cluster0.ab12cd.mongodb.net` (full subdomain), not a placeholder. If the DB password contains `@`, `#`, `/`, or spaces, **URL-encode** it in the URI. Do not wrap the whole URI in extra quotes in the config value.
-- **CORS errors in browser:** `CLIENT_URL` must match the site you open (including `https://`).
+- **CORS errors in browser:** `CLIENT_URL` must match the site you open (including `https://`). You can list **several** origins separated by commas (no spaces needed), e.g. production Vercel URL **and** preview URLs like `https://blog-space-git-development-….vercel.app`.
+- **“Failed to fetch” on a `*-git-*-*.vercel.app` preview URL:** (1) Add that exact preview URL to Heroku `CLIENT_URL` (comma-separated with your main Vercel URL). (2) In Vercel → **Settings → Environment Variables**, set `REACT_APP_API_URL` for **Preview** (and Production), then **Redeploy** the preview — otherwise the preview build still points at `localhost` and cannot reach Heroku.
 - **Build fails “no package.json”:** Confirm `APP_BASE=blog-backend` and buildpack order (monorepo first, then `heroku/nodejs`).
 - **Scheduled posts:** The server runs a timer every 60s while the dyno is running; Eco dynos can sleep on inactive apps—upgrade or use a ping/cron if sleep becomes an issue.
 

@@ -47,10 +47,29 @@ setInterval(() => {
   );
 }, 60 * 1000);
 
-// Middleware
+// Middleware — allow multiple web origins (production + Vercel preview URLs).
+// Set CLIENT_URL to one origin, or several separated by commas, e.g.:
+// https://blog-space.vercel.app,https://blog-space-git-development-xxx.vercel.app
+const buildAllowedOrigins = () => {
+  const raw = [process.env.CLIENT_URL || '', process.env.CLIENT_URLS || '']
+    .join(',')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (raw.length === 0) {
+    return new Set(['http://localhost:3000']);
+  }
+  return new Set(raw);
+};
+const allowedOrigins = buildAllowedOrigins();
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.has(origin)) return callback(null, true);
+    callback(null, false);
+  },
+  credentials: true,
 }));
 app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
