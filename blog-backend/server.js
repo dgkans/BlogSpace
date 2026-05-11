@@ -38,8 +38,14 @@ const publishScheduledPosts = async () => {
     console.error('[Scheduler] Error:', err.message);
   }
 };
-publishScheduledPosts();
-setInterval(publishScheduledPosts, 60 * 1000);
+publishScheduledPosts().catch((err) =>
+  console.error('[Scheduler] Error on startup run:', err?.message || err)
+);
+setInterval(() => {
+  publishScheduledPosts().catch((err) =>
+    console.error('[Scheduler] Error:', err?.message || err)
+  );
+}, 60 * 1000);
 
 // Middleware
 app.use(cors({
