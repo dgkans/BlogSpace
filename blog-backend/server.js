@@ -481,7 +481,11 @@ app.post('/api/upload', verifyToken, imageUpload.single('image'), async (req, re
     return res.status(201).json({ url: result.secure_url });
   } catch (err) {
     console.error('Cloudinary upload error:', err);
-    return res.status(502).json({ message: 'Image upload failed. Check Cloudinary credentials.' });
+    const detail = err?.message || err?.error?.message || String(err);
+    return res.status(502).json({
+      message: 'Image upload failed. Check Cloudinary credentials.',
+      detail,
+    });
   }
 });
 

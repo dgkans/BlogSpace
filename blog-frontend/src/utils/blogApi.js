@@ -3,7 +3,9 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 const parseJson = async (response) => {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.message || 'Request failed');
+    const msg = data.message || 'Request failed';
+    const extra = data.detail ? ` — ${data.detail}` : '';
+    throw new Error(`${msg}${extra}`);
   }
   return data;
 };
