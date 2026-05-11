@@ -22,7 +22,8 @@ const buildOptions = (mongoUri) => {
 };
 
 const connectDB = async () => {
-  const mongoUri = process.env.MONGODB_URI;
+  // Heroku copy-paste often adds a trailing newline; breaks SRV lookup (EBADNAME).
+  const mongoUri = (process.env.MONGODB_URI || '').trim();
 
   if (!mongoUri) {
     throw new Error('MONGODB_URI is not set in environment variables');

@@ -123,6 +123,7 @@ After Vercel gives you a URL, set **`CLIENT_URL`** on Heroku to that exact origi
 ## Troubleshooting
 
 - **H10 / app crashed:** Check `heroku logs --tail -a your-blogspace-api`. Common causes: missing `MONGODB_URI`, bad Atlas IP allowlist, or `JWT_SECRET` unset.
+- **`querySrv EBADNAME` / MongoDB SRV errors:** The `MONGODB_URI` value is invalid for DNS (wrong host, truncated cluster name, stray characters, or a trailing newline). In Heroku → **Settings → Config Vars**, delete `MONGODB_URI` and paste again from Atlas (**Database → Connect → Drivers → Node**). The host must look like `cluster0.ab12cd.mongodb.net` (full subdomain), not a placeholder. If the DB password contains `@`, `#`, `/`, or spaces, **URL-encode** it in the URI. Do not wrap the whole URI in extra quotes in the config value.
 - **CORS errors in browser:** `CLIENT_URL` must match the site you open (including `https://`).
 - **Build fails “no package.json”:** Confirm `APP_BASE=blog-backend` and buildpack order (monorepo first, then `heroku/nodejs`).
 - **Scheduled posts:** The server runs a timer every 60s while the dyno is running; Eco dynos can sleep on inactive apps—upgrade or use a ping/cron if sleep becomes an issue.
